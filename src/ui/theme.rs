@@ -52,7 +52,7 @@ pub fn draw_banner() {
     let rpad = pad - lpad;
 
     // Subtitle centred
-    let sub = "Reconnaissance Framework  v0.5.0";
+    let sub = "Reconnaissance Framework  v0.6.0";
     let sub_w = UnicodeWidthStr::width(sub);
     let pad2 = inner.saturating_sub(sub_w);
     let lpad2 = pad2 / 2;
