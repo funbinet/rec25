@@ -1,11 +1,10 @@
 //! Terminal theme: colours, box drawing, banner, helpers.
 
 use crossterm::{
-    cursor,
     event::{read, Event},
     execute,
     style::{Color, Print, ResetColor, SetForegroundColor},
-    terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode},
 };
 use std::io::{self, Write};
 
@@ -29,52 +28,27 @@ pub fn cprintln(colour: Color, text: &str) {
     println!();
 }
 
-// ── Clear / cursor ─────────────────────────────────────────────────────────
-
-pub fn clear_screen() {
-    let _ = execute!(
-        io::stdout(),
-        Clear(ClearType::All),
-        cursor::MoveTo(0, 0)
-    );
+pub fn terminal_width() -> usize {
+    crossterm::terminal::size().map(|(w, _)| w as usize).unwrap_or(80)
 }
 
 // ── Banner ─────────────────────────────────────────────────────────────────
 
 pub fn draw_banner() {
+    let term_width = terminal_width();
+    let width = term_width.saturating_sub(2).max(40);
+    
     let border_colour = green();
-    let art_colour    = bright_green();
     let name_colour   = white();
 
-    let top    = "╔═══════════════════════════════════════════════════════════════╗";
-    let bottom = "╚═══════════════════════════════════════════════════════════════╝";
-    let blank  = "║                                                               ║";
+    let top    = format!("╔{}╗", "═".repeat(width));
+    let bottom = format!("╚{}╝", "═".repeat(width));
 
-    let art = [
-        "║  ██████╗ ███████╗ ██████╗  ██╗  ██╗██████╗ ███████╗       ║",
-        "║  ██╔══██╗██╔════╝██╔════╝  ██║  ██║╚════██╗██╔════╝       ║",
-        "║  ██████╔╝█████╗  ██║       ███████║ █████╔╝███████╗       ║",
-        "║  ██╔══██╗██╔══╝  ██║       ╚════██║╚═══██╗╚════██║       ║",
-        "║  ██║  ██║███████╗╚██████╗       ██║██████╔╝███████║       ║",
-        "║  ╚═╝  ╚═╝╚══════╝ ╚═════╝      ╚═╝╚═════╝ ╚══════╝       ║",
-    ];
-
-    let name_line = "║               ◆  REC#25 ◆  Reconnaissance Framework  ◆      ║";
-    let ver_line  = "║                           v0.1.0                              ║";
-
-    cprintln(border_colour, top);
-    cprintln(border_colour, blank);
-    for l in &art {
-        cprint(border_colour, "");
-        cprintln(art_colour, l);
-    }
-    cprintln(border_colour, blank);
-    cprint(border_colour, "");
-    cprintln(name_colour, name_line);
-    cprint(border_colour, "");
-    cprintln(grey(), ver_line);
-    cprintln(border_colour, blank);
-    cprintln(border_colour, bottom);
+    cprintln(border_colour, &top);
+    cprint(border_colour, "║");
+    cprint(name_colour, &format!("{:^width$}", "REC#25", width = width));
+    cprintln(border_colour, "║");
+    cprintln(border_colour, &bottom);
     println!();
 }
 
@@ -82,30 +56,36 @@ pub fn draw_banner() {
 
 /// Draw a green-bordered box with an optional title and content lines.
 pub fn print_box(title: &str, lines: &[&str]) {
-    let width = lines.iter().map(|l| l.len()).max().unwrap_or(0).max(title.len() + 4).max(40);
-    let pad   = width + 4; // account for "║  " and "  ║"
+    let term_width = terminal_width();
+    let width = term_width.saturating_sub(2).max(40);
 
     let border = green();
     let text   = white();
 
-    let top_bar = format!("╔{}╗", "═".repeat(pad));
+    let top_bar = format!("╔{}╗", "═".repeat(width));
     cprintln(border, &top_bar);
 
     if !title.is_empty() {
         cprint(border, "╠");
-        cprint(text, &format!("  {:<width$}  ", title, width = width));
-        cprintln(border, "║");
-        let sep = format!("╠{}╣", "═".repeat(pad));
+        cprint(text, &format!("{:^width$}", title, width = width));
+        cprintln(border, "╣");
+        let sep = format!("╠{}╣", "═".repeat(width));
         cprintln(border, &sep);
     }
 
     for l in lines {
-        cprint(border, "║  ");
-        cprint(text, &format!("{:<width$}", l, width = width));
-        cprintln(border, "  ║");
+        let inner_space = width.saturating_sub(2);
+        let display_text = if l.len() > inner_space {
+            format!("{}...", &l[..inner_space.saturating_sub(3)])
+        } else {
+            format!("{:<inner_space$}", l, inner_space = inner_space)
+        };
+        cprint(border, "║ ");
+        cprint(text, &display_text);
+        cprintln(border, " ║");
     }
 
-    let bottom_bar = format!("╚{}╝", "═".repeat(pad));
+    let bottom_bar = format!("╚{}╝", "═".repeat(width));
     cprintln(border, &bottom_bar);
 }
 
@@ -114,16 +94,24 @@ pub fn print_box(title: &str, lines: &[&str]) {
 pub fn print_error(msg: &str) {
     println!();
     let lines: Vec<&str> = msg.lines().collect();
-    let width = lines.iter().map(|l| l.len()).max().unwrap_or(0).max(40);
+    
+    let term_width = terminal_width();
+    let width = term_width.saturating_sub(2).max(40);
 
     let _ = execute!(io::stdout(), SetForegroundColor(red()));
-    println!("╔{}╗", "═".repeat(width + 4));
-    println!("║  {:<width$}  ║", "✘  ERROR", width = width);
-    println!("╠{}╣", "═".repeat(width + 4));
+    println!("╔{}╗", "═".repeat(width));
+    println!("║ {:^width$} ║", "✘  ERROR", width = width - 2);
+    println!("╠{}╣", "═".repeat(width));
     for l in &lines {
-        println!("║  {:<width$}  ║", l, width = width);
+        let inner_space = width.saturating_sub(2);
+        let display_text = if l.len() > inner_space {
+            format!("{}...", &l[..inner_space.saturating_sub(3)])
+        } else {
+            format!("{:<inner_space$}", l, inner_space = inner_space)
+        };
+        println!("║ {} ║", display_text);
     }
-    println!("╚{}╝", "═".repeat(width + 4));
+    println!("╚{}╝", "═".repeat(width));
     let _ = execute!(io::stdout(), ResetColor);
     println!();
 }
@@ -139,16 +127,18 @@ pub fn print_info(msg: &str) {
     cprintln(white(), msg);
 }
 
-pub fn print_dim(msg: &str) {
-    cprintln(grey(), msg);
-}
-
 /// Draw a thin coloured section divider with a label.
 pub fn section_header(label: &str) {
     println!();
-    cprint(green(), "  ╔═ ");
+    let term_width = terminal_width();
+    let width = term_width.saturating_sub(2).max(40);
+    // ╔═ label ═══...
+    // 1 + 1 + 1 + len + 1 + X = width => X = width - len - 4
+    let right_len = width.saturating_sub(label.len() + 4);
+
+    cprint(green(), "╔═ ");
     cprint(white(), label);
-    cprintln(green(), " ═══════════════════════════");
+    cprintln(green(), &format!(" {}", "═".repeat(right_len)));
     println!();
 }
 

@@ -150,8 +150,8 @@ pub fn hacker_theme() -> ColorfulTheme {
     use dialoguer::console::Style;
     ColorfulTheme {
         active_item_style:   Style::new().green().bold(),
-        active_item_prefix:  dialoguer::console::style("❯".to_string()).green().bold(),
-        inactive_item_prefix: dialoguer::console::style(" ".to_string()).black(),
+        active_item_prefix:  dialoguer::console::style("║ ❯".to_string()).green(),
+        inactive_item_prefix: dialoguer::console::style("║  ".to_string()).green(),
         values_style:        Style::new().green(),
         prompt_style:        Style::new().white().bold(),
         prompt_prefix:       dialoguer::console::style("?".to_string()).green(),

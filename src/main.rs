@@ -35,6 +35,9 @@ fn main() -> Result<()> {
     // 3. Load tool registry (zero-cost static refs).
     let categories = tools::build_registry();
 
+    // Draw the banner exactly once.
+    ui::theme::draw_banner();
+
     // 4. Main interaction loop.
     loop {
         let top_choice = match top_menu() {
@@ -48,12 +51,22 @@ fn main() -> Result<()> {
         match top_choice {
             TopMenuChoice::Category(cat_idx) => {
                 let cat = categories[cat_idx];
-                // Select tool.
-                if let Some(tool) = tool_menu(cat)? {
-                    // Select mode.
-                    if let Some(mode) = mode_menu(tool)? {
-                        // Execute workflow.
-                        run_workflow(tool, mode, &cfg, &logger)?;
+                // Loop at tool selection
+                loop {
+                    if let Some(tool) = tool_menu(cat)? {
+                        // Loop at mode selection
+                        loop {
+                            if let Some(mode) = mode_menu(tool)? {
+                                // Execute workflow.
+                                run_workflow(tool, mode, &cfg, &logger)?;
+                            } else {
+                                // "Back" selected in Mode Menu
+                                break;
+                            }
+                        }
+                    } else {
+                        // "Back" selected in Tool Menu
+                        break;
                     }
                 }
             }
@@ -88,8 +101,6 @@ fn run_workflow(
     cfg: &Config,
     logger: &Logger,
 ) -> Result<()> {
-    ui::theme::clear_screen();
-    ui::theme::draw_banner();
     section_header(&format!("{} :: {}", tool.name, mode.name));
 
     // 1. Dependency check.
