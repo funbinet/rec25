@@ -130,13 +130,13 @@ fn run_boxed_menu(title: &str, items: &[String]) -> Result<Option<usize>> {
                     Print("\r\n")
                 );
             } else {
-                // Inactive: dim border, white text
+                // Inactive: dim border, green text
                 let _ = queue!(stdout,
                     SetForegroundColor(Color::Rgb { r: 0, g: 220, b: 100 }),
                     Print("║ "),
                     SetForegroundColor(Color::Reset),
                     Print("  "),
-                    SetForegroundColor(Color::White),
+                    SetForegroundColor(Color::Rgb { r: 0, g: 255, b: 80 }), // Green text instead of White
                     Print(&item_text),
                     SetForegroundColor(Color::Rgb { r: 0, g: 220, b: 100 }),
                     Print(" ║\r\n")
@@ -194,14 +194,14 @@ pub fn top_menu() -> Result<TopMenuChoice> {
     println!();
     // All ASCII — guaranteed to display correctly in any terminal.
     let items: Vec<String> = vec![
-        " [1] Discovery".into(),
-        " [2] Mapping".into(),
-        " [3] Crawling".into(),
-        " [4] Analysis".into(),
-        " [5] Automation".into(),
-        " [O] Outputs".into(),
-        " [S] Settings".into(),
-        " [Q] Exit".into(),
+        " Discovery".into(),
+        " Mapping".into(),
+        " Crawling".into(),
+        " Analysis".into(),
+        " Automation".into(),
+        " Outputs".into(),
+        " Settings".into(),
+        " Exit".into(),
     ];
 
     match run_boxed_menu("  R E C # 2 5   -   M A I N   M E N U  ", &items)? {
@@ -221,14 +221,17 @@ pub fn top_menu() -> Result<TopMenuChoice> {
 pub fn tool_menu(cat: &'static Category) -> Result<Option<&'static Tool>> {
     println!();
     let title = format!("  {}  -  Select Tool  ", cat.name);
-    let mut items: Vec<String> = cat.tools.iter().enumerate()
-        .map(|(i, t)| format!(" [{:>2}] {}", i + 1, t.name))
+    let mut items: Vec<String> = cat.tools.iter()
+        .map(|t| format!(" {}", t.name))
         .collect();
-    items.push(" [<] Back".to_string());
+    items.push(" Back".to_string());
+    items.push(" Exit".to_string());
 
     match run_boxed_menu(&title, &items)? {
         Some(i) if i < cat.tools.len() => Ok(Some(&cat.tools[i])),
-        _ => Ok(None),
+        Some(i) if i == cat.tools.len() => Ok(None), // Back
+        Some(_) => { std::process::exit(0); } // Exit
+        None => Ok(None),
     }
 }
 
@@ -237,14 +240,17 @@ pub fn tool_menu(cat: &'static Category) -> Result<Option<&'static Tool>> {
 pub fn mode_menu(tool: &'static Tool) -> Result<Option<&'static Mode>> {
     println!();
     let title = format!("  {}  -  Select Mode  ", tool.name);
-    let mut items: Vec<String> = tool.modes.iter().enumerate()
-        .map(|(i, m)| format!(" [{}] {}", i + 1, m.name))
+    let mut items: Vec<String> = tool.modes.iter()
+        .map(|m| format!(" {}", m.name))
         .collect();
-    items.push(" [<] Back".to_string());
+    items.push(" Back".to_string());
+    items.push(" Exit".to_string());
 
     match run_boxed_menu(&title, &items)? {
         Some(i) if i < tool.modes.len() => Ok(Some(&tool.modes[i])),
-        _ => Ok(None),
+        Some(i) if i == tool.modes.len() => Ok(None), // Back
+        Some(_) => { std::process::exit(0); } // Exit
+        None => Ok(None),
     }
 }
 
@@ -264,19 +270,21 @@ pub fn outputs_menu(config: &Config) -> Result<()> {
 
         let mut items: Vec<String> = files
             .iter()
-            .enumerate()
-            .map(|(i, (name, size, age))| {
-                format!(" [{:>2}] {:<45} {:>8}  {}", i + 1, name, size, age)
+            .map(|(name, size, age)| {
+                format!(" {:<45} {:>8}  {}", name, size, age)
             })
             .collect();
-        items.push(" [<] Back".to_string());
+        items.push(" Back".to_string());
+        items.push(" Exit".to_string());
 
         match run_boxed_menu("  Outputs  -  Browse & Manage  ", &items)? {
             Some(i) if i < files.len() => {
                 let path = format!("{}/{}", config.output_dir(), files[i].0);
                 file_action_menu(&path)?;
             }
-            _ => break,
+            Some(i) if i == files.len() => break, // Back
+            Some(_) => { std::process::exit(0); } // Exit
+            None => break,
         }
     }
     Ok(())
@@ -316,21 +324,18 @@ fn file_action_menu(path: &str) -> Result<()> {
         .file_name().unwrap_or_default()
         .to_string_lossy().into_owned();
 
-    let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|_| "[binary or unreadable file]".into());
-    let preview: Vec<&str> = content.lines().take(20).collect();
-    print_box(&format!("Preview - {}", fname), &preview);
-    println!();
-
     let actions = vec![
-        " [E] Open in nano (edit)".to_string(),
-        " [D] Delete file".to_string(),
-        " [<] Back".to_string(),
+        " View Output".to_string(),
+        " Open in nano (edit)".to_string(),
+        " Delete file".to_string(),
+        " Back".to_string(),
+        " Exit".to_string(),
     ];
 
     match run_boxed_menu("  File Action  ", &actions)? {
-        Some(0) => { let _ = std::process::Command::new("nano").arg(path).status(); }
-        Some(1) => {
+        Some(0) => { crate::ui::output_viewer::view_file(path)?; }
+        Some(1) => { let _ = std::process::Command::new("nano").arg(path).status(); }
+        Some(2) => {
             if Confirm::with_theme(&hacker_theme())
                 .with_prompt(format!("Delete '{}'?", fname))
                 .default(false).interact()?
@@ -340,6 +345,8 @@ fn file_action_menu(path: &str) -> Result<()> {
                 wait_key();
             }
         }
+        Some(3) | None => {} // Back
+        Some(4) => { std::process::exit(0); } // Exit
         _ => {}
     }
     Ok(())

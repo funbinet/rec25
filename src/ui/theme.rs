@@ -15,7 +15,7 @@ use unicode_width::UnicodeWidthStr;
 #[inline] pub fn bright_green() -> Color { Color::Rgb { r: 0, g: 255, b: 80 } }
 #[inline] pub fn aqua()   -> Color { Color::Rgb { r: 0,   g: 200, b: 200 } }
 #[inline] pub fn red()    -> Color { Color::Red }
-#[inline] pub fn white()  -> Color { Color::White }
+#[inline] pub fn white()  -> Color { Color::Rgb { r: 0, g: 255, b: 80 } } // Replaced with bright green for pure green/black look
 #[inline] pub fn grey()   -> Color { Color::DarkGrey }
 #[inline] pub fn yellow() -> Color { Color::Rgb { r: 230, g: 200, b: 0   } }
 

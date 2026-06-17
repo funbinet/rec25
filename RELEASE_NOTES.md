@@ -1,6 +1,6 @@
-# REC#25 v0.3.0 — Release Notes
+# REC#25 v0.5.0 — Release Notes
 
-## Release v0.3.0
+## Release v0.5.0
 
 ### What is REC#25?
 
@@ -8,22 +8,14 @@
 
 ---
 
-### Changes in v0.3.0
+### Changes in v0.5.0
 
-**UI Overhaul — Full-Width Symmetrical Box System**
-- All menu boxes and info boxes now span the full terminal width (detected at runtime).
-- Fixed critical alignment bug: all characters — including multi-byte Unicode — are now measured by their *display column width* (using `unicode-width`), so the right border always closes perfectly.
-- Removed the spurious divider line that appeared between categories in the main menu.
-- Replaced non-rendering emoji icons with clean ASCII-safe menu labels (`[*]`, `[F]`, `[=]`, `[X]`).
-- Banner updated: shows REC#25 title, version, and a tip bar — all centred and full-width.
-
-**Navigation — Nested Menu Back-tracking**
-- After a tool execution completes, you are returned to the **mode selection** of the same tool — not the main menu. This allows you to re-run with different input, pick a different mode, or go back step by step.
-- Pressing `q` or `Esc` in any menu moves up one level (mode → tool → category → main).
-
-**Colour Theme Restored**
-- Restored the original green/aqua colour palette throughout (borders, titles, info messages, banner).
-- Blue has been removed; all UI elements now use consistent `#00DC64` green and `#00C8C8` aqua.
+**UI Enhancements & Fixes**
+- **Strict Hacker Theme**: Eliminated all white text for a pure, immersive green/black terminal experience.
+- **Scrollable Output Viewer**: Replaced the static 20-line preview box with a fully interactive, full-screen scrollable output viewer with a distinct Cyan (Aqua) theme.
+- **Unified Navigation**: Added explicitly selectable `Back` and `Exit` buttons to all menus (no longer required to use keyboard shortcuts).
+- **Zero Emojis**: Removed all emojis and square brackets from menus for maximum compatibility and a cleaner look.
+- **Install Script Fix**: Resolved `Cargo Rust is not installed` error by explicitly sourcing `$HOME/.cargo/env` before running checks.
 
 ---
 

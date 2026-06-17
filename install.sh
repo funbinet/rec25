@@ -15,6 +15,18 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # 2. Check for Cargo/Rust
+if [ -n "$SUDO_USER" ]; then
+    # Try sourcing the invoking user's cargo env
+    SUDO_USER_HOME=$(eval echo ~$SUDO_USER)
+    if [ -f "$SUDO_USER_HOME/.cargo/env" ]; then
+        source "$SUDO_USER_HOME/.cargo/env"
+    fi
+else
+    if [ -f "$HOME/.cargo/env" ]; then
+        source "$HOME/.cargo/env"
+    fi
+fi
+
 if ! command -v cargo &> /dev/null; then
     echo -e "\033[31m✘ ERROR: Cargo (Rust) is not installed or not in PATH.\033[0m"
     echo "Please install Rust via rustup (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh) and try again."
@@ -28,8 +40,11 @@ echo -e "\033[36mℹ\033[0m Compiling REC#25 (release mode)..."
 # We run cargo build as the user who invoked sudo (SUDO_USER) if possible,
 # otherwise it pollutes target/ with root-owned files.
 if [ -n "$SUDO_USER" ]; then
-    sudo -u "$SUDO_USER" cargo build --release
+    sudo -u "$SUDO_USER" bash -c 'source "$HOME/.cargo/env" && cargo build --release'
 else
+    if [ -f "$HOME/.cargo/env" ]; then
+        source "$HOME/.cargo/env"
+    fi
     cargo build --release
 fi
 
