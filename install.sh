@@ -17,8 +17,8 @@ fi
 # 2. Check for Cargo/Rust
 if [ -n "$SUDO_USER" ]; then
     # Try sourcing the invoking user's cargo env
-    SUDO_USER_HOME=$(eval echo ~$SUDO_USER)
-    if [ -f "$SUDO_USER_HOME/.cargo/env" ]; then
+    SUDO_USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+    if [ -n "$SUDO_USER_HOME" ] && [ -f "$SUDO_USER_HOME/.cargo/env" ]; then
         source "$SUDO_USER_HOME/.cargo/env"
     fi
 else
