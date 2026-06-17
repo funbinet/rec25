@@ -15,7 +15,7 @@ use anyhow::Result;
 
 use config::Config;
 use logger::Logger;
-use ui::menu::{mode_menu, outputs_menu, settings_menu, tool_menu, top_menu, TopMenuChoice};
+use ui::menu::{mode_menu, outputs_menu, settings_menu, tool_menu, top_menu, MenuResult, TopMenuChoice};
 use ui::theme::{
     cprintln, grey, print_error, print_info, print_success, section_header, wait_key, white,
 };
@@ -51,26 +51,30 @@ fn main() -> Result<()> {
             TopMenuChoice::Category(cat_idx) => {
                 let cat = categories[cat_idx];
                 // Loop at tool selection
-                loop {
-                    if let Some(tool) = tool_menu(cat)? {
-                        // Loop at mode selection
-                        loop {
-                            if let Some(mode) = mode_menu(tool)? {
-                                // Execute workflow.
-                                run_workflow(tool, mode, &cfg, &logger)?;
-                            } else {
-                                // "Back" selected in Mode Menu
-                                break;
+                'tool_loop: loop {
+                    match tool_menu(cat)? {
+                        MenuResult::Selected(tool) => {
+                            // Loop at mode selection
+                            loop {
+                                match mode_menu(tool)? {
+                                    MenuResult::Selected(mode) => {
+                                        // Execute workflow.
+                                        run_workflow(tool, mode, &cfg, &logger)?;
+                                    }
+                                    MenuResult::Back => break,
+                                    MenuResult::Home => break 'tool_loop,
+                                    MenuResult::Exit => std::process::exit(0),
+                                }
                             }
                         }
-                    } else {
-                        // "Back" selected in Tool Menu
-                        break;
+                        MenuResult::Back => break 'tool_loop,
+                        MenuResult::Home => break 'tool_loop,
+                        MenuResult::Exit => std::process::exit(0),
                     }
                 }
             }
             TopMenuChoice::Outputs => {
-                outputs_menu(&cfg)?;
+                let _ = outputs_menu(&cfg)?;
             }
             TopMenuChoice::Settings => {
                 if let Some(new_cfg) = settings_menu(&cfg)? {

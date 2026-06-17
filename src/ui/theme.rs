@@ -162,17 +162,24 @@ pub fn print_warn(msg: &str) {
     cprintln(white(), msg);
 }
 
-/// Coloured section header spanning the terminal width.
+/// Boxed coloured section header spanning the terminal width.
 pub fn section_header(label: &str) {
     println!();
     let inner = terminal_width().saturating_sub(2).max(40);
-    let lw = UnicodeWidthStr::width(label) + 4; // "= " + label + " ="
-    let right = inner.saturating_sub(lw + 2);
-
-    cprint(green(), "╔═ ");
-    cprint(aqua(),  label);
-    cprintln(green(), &format!(" {}", "═".repeat(right + 1)));
-    println!();
+    
+    let top = format!("╔{}╗", "═".repeat(inner));
+    let mid = format!("╠{}╣", "═".repeat(inner));
+    
+    let lw = UnicodeWidthStr::width(label);
+    let pad = inner.saturating_sub(lw);
+    let lpad = pad / 2;
+    let rpad = pad - lpad;
+    
+    cprintln(green(), &top);
+    cprint(green(), "║");
+    cprint(aqua(), &format!("{}{}{}", " ".repeat(lpad), label, " ".repeat(rpad)));
+    cprintln(green(), "║");
+    cprintln(green(), &mid);
 }
 
 // ── Wait-for-key ───────────────────────────────────────────────────────────
