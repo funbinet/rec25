@@ -17,8 +17,7 @@ use config::Config;
 use logger::Logger;
 use ui::menu::{mode_menu, outputs_menu, settings_menu, tool_menu, top_menu, TopMenuChoice};
 use ui::theme::{
-    cprint, cprintln, grey, print_error, print_info, print_success, red, section_header, wait_key,
-    white,
+    cprintln, grey, print_error, print_info, print_success, section_header, wait_key, white,
 };
 
 fn main() -> Result<()> {
@@ -124,8 +123,7 @@ fn run_workflow(
     let cmd = executor::build_command(mode.cmd_template, &inputs, &out_path, &ts);
 
     println!();
-    cprint(grey(), "  Exec → ");
-    cprintln(white(), &cmd);
+    cprintln(grey(), &format!("  Exec: {}", cmd));
     println!();
 
     logger.info(&format!("Running: {}", cmd));
@@ -141,7 +139,7 @@ fn run_workflow(
                 logger.warn(&format!("Command returned non-zero ({}): {}", exec.exit_code, cmd));
                 print_error(&format!("Command failed (exit {})", exec.exit_code));
                 if !exec.stderr.is_empty() {
-                    cprintln(red(), &exec.stderr);
+                    cprintln(white(), &exec.stderr);
                 }
             } else {
                 print_success(&format!("Completed in {:.1}s", exec.duration.as_secs_f32()));

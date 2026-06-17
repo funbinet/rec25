@@ -145,19 +145,27 @@ fn prompt_file(config: &Config) -> Result<String> {
     }
 }
 
-/// A green-on-black dialoguer theme.
+/// Green-on-black dialoguer theme (used for text inputs, confirms, etc.)
 pub fn hacker_theme() -> ColorfulTheme {
     use dialoguer::console::Style;
     ColorfulTheme {
-        active_item_style:   Style::new().green().bold(),
-        active_item_prefix:  dialoguer::console::style("║ ❯".to_string()).green(),
-        inactive_item_prefix: dialoguer::console::style("║  ".to_string()).green(),
-        values_style:        Style::new().green(),
-        prompt_style:        Style::new().white().bold(),
-        prompt_prefix:       dialoguer::console::style("?".to_string()).green(),
-        error_style:         Style::new().red().bold(),
-        error_prefix:        dialoguer::console::style("✘".to_string()).red().bold(),
-        success_prefix:      dialoguer::console::style("✔".to_string()).green(),
-        ..ColorfulTheme::default()
+        defaults_style:       Style::new().green(),
+        prompt_style:         Style::new().white().bold(),
+        prompt_prefix:        dialoguer::console::style("?".to_string()).for_stderr().green(),
+        prompt_suffix:        dialoguer::console::style(">>".to_string()).green(),
+        success_prefix:       dialoguer::console::style("[OK]".to_string()).green().bold(),
+        success_suffix:       dialoguer::console::style("".to_string()).green(),
+        error_prefix:         dialoguer::console::style("[ERR]".to_string()).red().bold(),
+        error_style:          Style::new().red().bold(),
+        hint_style:           Style::new().cyan().dim(),
+        values_style:         Style::new().green(),
+        active_item_style:    Style::new().green().bold(),
+        inactive_item_style:  Style::new().white(),
+        active_item_prefix:   dialoguer::console::style(">".to_string()).green().bold(),
+        inactive_item_prefix: dialoguer::console::style(" ".to_string()).white(),
+        checked_item_prefix:  dialoguer::console::style("[x]".to_string()).green(),
+        unchecked_item_prefix: dialoguer::console::style("[ ]".to_string()).white(),
+        picked_item_prefix:   dialoguer::console::style(">".to_string()).green().bold(),
+        unpicked_item_prefix: dialoguer::console::style(" ".to_string()).white(),
     }
 }
