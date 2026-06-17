@@ -1,0 +1,162 @@
+//! REC#25 — Command-line reconnaissance framework.
+//! Main execution loop.
+
+mod config;
+mod executor;
+mod input;
+mod logger;
+mod parser;
+mod tools;
+mod ui;
+
+use chrono::Local;
+use std::path::Path;
+use anyhow::Result;
+
+use config::Config;
+use logger::Logger;
+use ui::menu::{mode_menu, outputs_menu, settings_menu, tool_menu, top_menu, TopMenuChoice};
+use ui::theme::{
+    cprint, cprintln, grey, print_error, print_info, print_success, red, section_header, wait_key,
+    white,
+};
+
+fn main() -> Result<()> {
+    // 1. Ensure config and output dirs exist; load config.
+    let mut cfg = Config::load_or_create()?;
+    std::fs::create_dir_all(cfg.output_dir())?;
+    std::fs::create_dir_all(cfg.log_dir())?;
+
+    // 2. Init logger.
+    let log_path = format!("{}/rec25.log", cfg.log_dir());
+    let logger = Logger::open(&log_path).unwrap_or_else(|_| Logger::open("/tmp/rec25.log").unwrap());
+    logger.info("REC#25 session started.");
+
+    // 3. Load tool registry (zero-cost static refs).
+    let categories = tools::build_registry();
+
+    // 4. Main interaction loop.
+    loop {
+        let top_choice = match top_menu() {
+            Ok(c) => c,
+            Err(e) => {
+                logger.error(&format!("Menu error: {e}"));
+                break;
+            }
+        };
+
+        match top_choice {
+            TopMenuChoice::Category(cat_idx) => {
+                let cat = categories[cat_idx];
+                // Select tool.
+                if let Some(tool) = tool_menu(cat)? {
+                    // Select mode.
+                    if let Some(mode) = mode_menu(tool)? {
+                        // Execute workflow.
+                        run_workflow(tool, mode, &cfg, &logger)?;
+                    }
+                }
+            }
+            TopMenuChoice::Outputs => {
+                outputs_menu(&cfg)?;
+            }
+            TopMenuChoice::Settings => {
+                if let Some(new_cfg) = settings_menu(&cfg)? {
+                    cfg = new_cfg; // Update live config if user saved.
+                    logger.info("Configuration updated by user.");
+                }
+            }
+            TopMenuChoice::Exit => {
+                cprintln(grey(), "\n  Exiting REC#25. Goodbye.\n");
+                logger.info("REC#25 session ended normally.");
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// The core execution workflow:
+/// 1. Check dependencies.
+/// 2. Collect inputs.
+/// 3. Build & run command (with spinner).
+/// 4. Parse & display results.
+fn run_workflow(
+    tool: &tools::types::Tool,
+    mode: &tools::types::Mode,
+    cfg: &Config,
+    logger: &Logger,
+) -> Result<()> {
+    ui::theme::clear_screen();
+    ui::theme::draw_banner();
+    section_header(&format!("{} :: {}", tool.name, mode.name));
+
+    // 1. Dependency check.
+    if !executor::check_binary(tool.binary) {
+        let msg = format!("Missing dependency: `{}` is not in PATH.", tool.binary);
+        logger.warn(&msg);
+        print_error(&msg);
+        print_info(&format!("Try: {}", executor::install_hint(tool.binary)));
+        wait_key();
+        return Ok(());
+    }
+
+    // 2. Collect Inputs.
+    let inputs = input::collect_inputs(mode, cfg)?;
+
+    // 3. Prepare paths & command.
+    let ts = Local::now().format("%Y%m%d_%H%M%S").to_string();
+    let out_name = format!("{}_{}_{}.{}", tool.binary, mode.name.replace(" ", "_"), ts, mode.file_ext);
+    let out_path = format!("{}/{}", cfg.output_dir(), out_name);
+
+    let cmd = executor::build_command(mode.cmd_template, &inputs, &out_path, &ts);
+
+    println!();
+    cprint(grey(), "  Exec → ");
+    cprintln(white(), &cmd);
+    println!();
+
+    logger.info(&format!("Running: {}", cmd));
+
+    // 4. Execute.
+    let spinner = ui::spinner::Spinner::start("Running command...");
+    let result = executor::run_command(&cmd, cfg.timeout_secs());
+    spinner.stop();
+
+    match result {
+        Ok(exec) => {
+            if exec.exit_code != 0 {
+                logger.warn(&format!("Command returned non-zero ({}): {}", exec.exit_code, cmd));
+                print_error(&format!("Command failed (exit {})", exec.exit_code));
+                if !exec.stderr.is_empty() {
+                    cprintln(red(), &exec.stderr);
+                }
+            } else {
+                print_success(&format!("Completed in {:.1}s", exec.duration.as_secs_f32()));
+            }
+
+            // 5. Parse and Display Output.
+            if Path::new(&out_path).exists() {
+                let raw_out = std::fs::read_to_string(&out_path).unwrap_or_default();
+                let parsed = parser::parse_output(&raw_out, mode.output_format);
+                ui::output::display_result(&parsed, mode.output_format, &out_path, cfg.preview_lines());
+            } else {
+                logger.error(&format!("Output file not created: {}", out_path));
+                print_error("No output file generated by the tool.");
+                // If stdout has something, show it as fallback.
+                if !exec.stdout.is_empty() {
+                    cprintln(grey(), "\n--- Standard Output Fallback ---");
+                    println!("{}", exec.stdout);
+                }
+            }
+        }
+        Err(e) => {
+            logger.error(&format!("Execution failed: {}", e));
+            print_error(&format!("Execution error: {}", e));
+        }
+    }
+
+    wait_key();
+    Ok(())
+}

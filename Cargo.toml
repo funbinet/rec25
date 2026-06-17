@@ -1,0 +1,27 @@
+[package]
+name          = "rec25"
+version       = "0.1.0"
+edition       = "2021"
+description   = "REC#25 — Menu-driven terminal reconnaissance framework"
+license       = "MIT"
+
+[[bin]]
+name = "rec25"
+path = "src/main.rs"
+
+[dependencies]
+crossterm   = "0.27"
+dialoguer   = "0.11"
+anyhow      = "1"
+serde       = { version = "1", features = ["derive"] }
+toml        = "0.8"
+chrono      = { version = "0.4", features = ["serde"] }
+regex       = "1"
+serde_json  = "1"
+clap        = { version = "4", features = ["derive"] }
+
+[profile.release]
+opt-level      = 3
+lto            = true
+codegen-units  = 1
+strip          = true
