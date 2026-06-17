@@ -119,14 +119,12 @@ fn run_boxed_menu(title: &str, items: &[String]) -> Result<Option<usize>> {
             let item_text = pad_to(&items[i], text_cols);
 
             if i == selected {
-                // Active: bright green text + bold, marker ">" in Cyan
+                // Active: entire row cyan + bold
                 let _ = queue!(stdout,
                     SetForegroundColor(Color::Cyan),
                     SetAttribute(Attribute::Bold),
                     Print("║ > "),
-                    SetForegroundColor(Color::Rgb { r: 0, g: 255, b: 80 }),
                     Print(&item_text),
-                    SetForegroundColor(Color::Cyan),
                     Print(" ║"),
                     SetAttribute(Attribute::Reset),
                     Print("\r\n")
@@ -347,7 +345,7 @@ fn file_action_menu(path: &str) -> Result<MenuResult<()>> {
 
     let actions = vec![
         " [O] View Output".to_string(),
-        " [E] Open in nano (edit)".to_string(),
+        " [E] Edit".to_string(),
         " [D] Delete file".to_string(),
         " [#] Home".to_string(),
         " [<] Back".to_string(),
