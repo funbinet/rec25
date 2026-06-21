@@ -2,7 +2,7 @@
 
 use crate::parser::ParsedOutput;
 use crate::tools::types::OutputFormat;
-use crate::ui::theme::{cprint, cprintln, green, grey, white, bright_green};
+use crate::ui::theme::{cprint, cprintln, green, grey, white, bright_green, terminal_width, pad_to};
 
 /// Display everything after a command completes: preview, summary, saved path.
 pub fn display_result(
@@ -32,46 +32,45 @@ pub fn display_preview(parsed: &ParsedOutput, max: usize) {
     let total_displayed = lines.len();
     let total_lines     = parsed.lines.len();
 
-    // Box header.
-    let width = lines.iter().map(|l| l.len()).max().unwrap_or(0).max(50);
-    let pad   = width + 4;
+    let inner = terminal_width().saturating_sub(2).max(40);
 
-    cprintln(green(), &format!("╔{}╗", "═".repeat(pad)));
+    cprintln(green(), &format!("╔{}╗", "═".repeat(inner)));
     cprint(green(), "║  ");
-    cprint(white(), &format!("{:<width$}", "Output Preview", width = width));
+    cprint(white(), &pad_to("Output Preview", inner.saturating_sub(4)));
     cprintln(green(), "  ║");
-    cprintln(green(), &format!("╠{}╣", "═".repeat(pad)));
+    cprintln(green(), &format!("╠{}╣", "═".repeat(inner)));
+
+    let line_content_width = inner.saturating_sub(9);
 
     for (i, line) in lines.iter().enumerate() {
         let num = format!("{:>3}. ", i + 1);
         cprint(green(), "║  ");
         cprint(grey(), &num);
-        cprint(bright_green(), &format!("{:<w$}", line, w = width.saturating_sub(5)));
+        cprint(bright_green(), &pad_to(line, line_content_width));
         cprintln(green(), "  ║");
     }
 
     if total_lines > total_displayed {
+        let msg = format!("… {} more line{} not shown", total_lines - total_displayed,
+            if total_lines - total_displayed == 1 { "" } else { "s" });
         cprint(green(), "║  ");
-        cprint(grey(), &format!("… {} more line{} not shown", total_lines - total_displayed,
-            if total_lines - total_displayed == 1 { "" } else { "s" }));
-        let remaining_width = width.saturating_sub(40);
-        cprint(grey(), &" ".repeat(remaining_width));
+        cprint(grey(), &pad_to(&msg, inner.saturating_sub(4)));
         cprintln(green(), "  ║");
     }
 
-    cprintln(green(), &format!("╚{}╝", "═".repeat(pad)));
+    cprintln(green(), &format!("╚{}╝", "═".repeat(inner)));
 }
 
 /// Print the one-line summary line.
 pub fn display_summary(parsed: &ParsedOutput) {
     println!();
-    cprint(green(), "  ◆  ");
+    cprint(green(), "  [-] ");
     cprintln(white(), &parsed.summary);
 }
 
 /// Print the "Saved to:" path.
 pub fn display_saved(path: &str) {
-    cprint(grey(), "  💾  Saved → ");
+    cprint(grey(), "  [~] Saved → ");
     cprintln(bright_green(), path);
     println!();
 }

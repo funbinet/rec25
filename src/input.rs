@@ -116,7 +116,7 @@ fn prompt_file(config: &Config) -> Result<String> {
         })
         .collect();
     recent.sort_by(|a, b| b.1.cmp(&a.1));
-    recent.truncate(10);
+    // Removed truncate so all files are visible
 
     // Build menu: recent files + manual entry option.
     let manual_label = "[ Enter path manually ]";
@@ -127,6 +127,7 @@ fn prompt_file(config: &Config) -> Result<String> {
         .with_prompt("Select input file")
         .items(&options)
         .default(options.len() - 1)   // default = manual
+        .max_length(15)               // paginate
         .interact_opt()?
         .unwrap_or(options.len() - 1);
 

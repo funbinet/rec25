@@ -10,31 +10,7 @@ use crossterm::{
 use std::io::{self, Write};
 use unicode_width::UnicodeWidthStr;
 
-use crate::ui::theme::terminal_width;
-
-fn pad_to(s: &str, target_cols: usize) -> String {
-    let w = UnicodeWidthStr::width(s);
-    if w >= target_cols {
-        let mut out = String::new();
-        let mut cols = 0usize;
-        for c in s.chars() {
-            let cw = unicode_width::UnicodeWidthChar::width(c).unwrap_or(1);
-            if cols + cw > target_cols.saturating_sub(1) {
-                out.push('.');
-                break;
-            }
-            out.push(c);
-            cols += cw;
-        }
-        let cur_w = UnicodeWidthStr::width(out.as_str());
-        if cur_w < target_cols {
-            out.push_str(&" ".repeat(target_cols - cur_w));
-        }
-        out
-    } else {
-        format!("{}{}", s, " ".repeat(target_cols - w))
-    }
-}
+use crate::ui::theme::{terminal_width, pad_to};
 
 pub fn view_file(path: &str) -> Result<()> {
     let fname = std::path::Path::new(path)

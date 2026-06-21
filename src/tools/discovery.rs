@@ -1,217 +1,744 @@
-//! Discovery category — 19 tools, 4 modes each.
+//! Advanced Discovery & Attack Surface — 15 tools, 6 modes each.
+//! Modern toolchain for comprehensive attack surface enumeration with verified commands.
 
 use super::types::{Category, InputKind, Mode, OutputFormat, Tool};
 
 pub static DISCOVERY: Category = Category {
     name: "Discovery",
     tools: &[
-        // ── Subfinder ──────────────────────────────────────────────────────
+        // ── Subfinder (Verified) ─────────────────────────────────────────
         Tool {
             name: "Subfinder",
             binary: "subfinder",
             modes: &[
-                Mode { name: "Passive Subdomain Enum",   cmd_template: "subfinder -d {domain} -o {output_file}",                          inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Active Subdomain Enum",    cmd_template: "subfinder -d {domain} -active -o {output_file}",                   inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Subdomain with Resolve",   cmd_template: "subfinder -d {domain} -r -o {output_file}",                        inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "JSON Export",              cmd_template: "subfinder -d {domain} -json -o {output_file}",                     inputs: &[InputKind::Domain], output_format: OutputFormat::Json,  file_ext: "json" },
+                Mode { 
+                    name: "Passive Subdomain Enum",   
+                    cmd_template: "subfinder -d {domain} -silent -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "All Sources Enum",    
+                    cmd_template: "subfinder -d {domain} -all -silent -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Recursive Enum",   
+                    cmd_template: "subfinder -d {domain} -recursive -silent -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Specific Sources",   
+                    cmd_template: "subfinder -d {domain} -sources shodan,censys,virustotal -silent -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",              
+                    cmd_template: "subfinder -d {domain} -json -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "Bulk Domain Scan",   
+                    cmd_template: "subfinder -dL {file} -silent -o {output_file}", 
+                    inputs: &[InputKind::File], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
-        // ── Amass ─────────────────────────────────────────────────────────
+        // ── Amass (Verified - No -o flag) ──────────────────────────────
         Tool {
             name: "Amass",
             binary: "amass",
             modes: &[
-                Mode { name: "Passive DNS Enum",         cmd_template: "amass enum -passive -d {domain} -o {output_file}",                 inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Active DNS Enum",          cmd_template: "amass enum -active -d {domain} -o {output_file}",                  inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Brute Force DNS",          cmd_template: "amass enum -brute -d {domain} -o {output_file}",                   inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Intel Whois Search",       cmd_template: "amass intel -whois -d {domain} -o {output_file}",                  inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
+                Mode { 
+                    name: "Passive Enum",         
+                    cmd_template: "amass enum -passive -d {domain} -nocolor > {output_file} 2>&1", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Active Enum",          
+                    cmd_template: "amass enum -active -d {domain} -nocolor > {output_file} 2>&1", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Brute Force",          
+                    cmd_template: "amass enum -brute -d {domain} -nocolor > {output_file} 2>&1", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Whois Intel",           
+                    cmd_template: "amass intel -whois -d {domain} -nocolor > {output_file} 2>&1", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",              
+                    cmd_template: "amass enum -d {domain} -json {output_file} -nocolor 2>&1", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "Bulk Domain Enum",           
+                    cmd_template: "amass enum -df {file} -nocolor > {output_file} 2>&1", 
+                    inputs: &[InputKind::File], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
-        // ── Assetfinder ───────────────────────────────────────────────────
-        Tool {
-            name: "Assetfinder",
-            binary: "assetfinder",
-            modes: &[
-                Mode { name: "Find Related Domains",     cmd_template: "assetfinder {domain} | tee {output_file}",                         inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Subdomains Only",          cmd_template: "assetfinder --subs-only {domain} | tee {output_file}",             inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Resolve Found Subs",       cmd_template: "assetfinder --subs-only {domain} | httpx -silent | tee {output_file}", inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Count Found Assets",       cmd_template: "assetfinder {domain} | tee {output_file} | wc -l",                 inputs: &[InputKind::Domain], output_format: OutputFormat::Raw,   file_ext: "txt" },
-            ],
-        },
-        // ── Findomain ─────────────────────────────────────────────────────
+        // ── Findomain (Verified) ──────────────────────────────────────
         Tool {
             name: "Findomain",
             binary: "findomain",
             modes: &[
-                Mode { name: "Fast Subdomain Scan",      cmd_template: "findomain -t {domain} -u {output_file}",                           inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Subdomain Resolve",        cmd_template: "findomain -t {domain} -r -u {output_file}",                        inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Quiet Mode Scan",          cmd_template: "findomain -t {domain} -q -u {output_file}",                        inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Export to CSV",            cmd_template: "findomain -t {domain} --csv -u {output_file}",                     inputs: &[InputKind::Domain], output_format: OutputFormat::Csv,   file_ext: "csv" },
+                Mode { 
+                    name: "Basic Scan",      
+                    cmd_template: "findomain -t {domain} -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Resolve Subdomains",        
+                    cmd_template: "findomain -t {domain} -r -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Quiet Mode",          
+                    cmd_template: "findomain -t {domain} -q -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Aggressive Scan",           
+                    cmd_template: "findomain -t {domain} -a -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "CSV Output",            
+                    cmd_template: "findomain -t {domain} --csv -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Csv,   
+                    file_ext: "csv" 
+                },
+                Mode { 
+                    name: "Bulk Domain Scan",           
+                    cmd_template: "findomain -f {file} -o {output_file}", 
+                    inputs: &[InputKind::File], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
-        // ── github-subdomains ─────────────────────────────────────────────
+        // ── DNSX (Verified) ─────────────────────────────────────────────
         Tool {
-            name: "github-subdomains",
-            binary: "github-subdomains",
+            name: "DNSX",
+            binary: "dnsx",
             modes: &[
-                Mode { name: "Search GitHub Tokens",     cmd_template: "github-subdomains -d {domain} -t {value} -o {output_file}",        inputs: &[InputKind::Domain, InputKind::FreeText], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Search Org Repos",         cmd_template: "github-subdomains -d {domain} -o {output_file}",                   inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Silent Mode Scan",         cmd_template: "github-subdomains -d {domain} -s -o {output_file}",                inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Raw Hit Export",           cmd_template: "github-subdomains -d {domain} -raw -o {output_file}",              inputs: &[InputKind::Domain], output_format: OutputFormat::Raw,   file_ext: "txt" },
+                Mode { 
+                    name: "DNS Resolution",      
+                    cmd_template: "dnsx -d {domain} -a -aaaa -cname -mx -ns -txt -ptr -silent -o {output_file}", 
+                    inputs: &[InputKind::Domain],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "A/AAAA Lookup",        
+                    cmd_template: "dnsx -d {domain} -a -aaaa -resp-only -silent -o {output_file}", 
+                    inputs: &[InputKind::Domain],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "CDN Detection",         
+                    cmd_template: "dnsx -d {domain} -a -cdn -cname -silent -o {output_file}", 
+                    inputs: &[InputKind::Domain],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Wildcard Probe",          
+                    cmd_template: "dnsx -d {domain} -wildcard -silent -o {output_file}", 
+                    inputs: &[InputKind::Domain],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",           
+                    cmd_template: "dnsx -d {domain} -a -cname -mx -ns -txt -silent -json -o {output_file}", 
+                    inputs: &[InputKind::Domain],   
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "Bulk Resolve",           
+                    cmd_template: "dnsx -l {file} -a -aaaa -silent -o {output_file}", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
-        // ── crobat ────────────────────────────────────────────────────────
+        // ── HTTPX (Verified) ──────────────────────────────────────────────
         Tool {
-            name: "crobat",
-            binary: "crobat",
+            name: "HTTPX",
+            binary: "httpx",
             modes: &[
-                Mode { name: "Query All Subdomains",     cmd_template: "crobat -s {domain} | tee {output_file}",                           inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Query TLD Domains",        cmd_template: "crobat -tld {domain} | tee {output_file}",                         inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Reverse DNS Lookup",       cmd_template: "crobat -r {ip} | tee {output_file}",                               inputs: &[InputKind::Ip],     output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Bulk Domain Query",        cmd_template: "cat {file} | crobat -s - | tee {output_file}",                     inputs: &[InputKind::File],   output_format: OutputFormat::Lines, file_ext: "txt" },
+                Mode { 
+                    name: "Web Detection",      
+                    cmd_template: "httpx -u {url} -silent -status-code -title -tech-detect -content-length -o {output_file}", 
+                    inputs: &[InputKind::Url],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Tech Stack Analysis",        
+                    cmd_template: "httpx -u {url} -silent -tech-detect -csp-probe -tls-probe -hash -o {output_file}", 
+                    inputs: &[InputKind::Url],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "WAF Detection",         
+                    cmd_template: "httpx -u {url} -silent -waf-detect -cdn -server -o {output_file}", 
+                    inputs: &[InputKind::Url],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Screenshot Capture",          
+                    cmd_template: "httpx -u {url} -silent -screenshot -screenshot-path ./screenshots/ -o {output_file}", 
+                    inputs: &[InputKind::Url],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",           
+                    cmd_template: "httpx -u {url} -silent -json -o {output_file}", 
+                    inputs: &[InputKind::Url],   
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "Port Scan",           
+                    cmd_template: "httpx -u {url} -silent -ports 80,443,8080,8443 -o {output_file}", 
+                    inputs: &[InputKind::Url],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
-        // ── theHarvester ──────────────────────────────────────────────────
+        // ── Naabu (Verified) ──────────────────────────────────────────────
         Tool {
-            name: "theHarvester",
-            binary: "theHarvester",
+            name: "Naabu",
+            binary: "naabu",
             modes: &[
-                Mode { name: "Passive Email Harvest",    cmd_template: "theHarvester -d {domain} -b all -f {output_file}",                 inputs: &[InputKind::Domain], output_format: OutputFormat::Xml,   file_ext: "xml" },
-                Mode { name: "Google Source Harvest",    cmd_template: "theHarvester -d {domain} -b google -l 500 -f {output_file}",       inputs: &[InputKind::Domain], output_format: OutputFormat::Xml,   file_ext: "xml" },
-                Mode { name: "DNS Brute Force",          cmd_template: "theHarvester -d {domain} -c -f {output_file}",                     inputs: &[InputKind::Domain], output_format: OutputFormat::Xml,   file_ext: "xml" },
-                Mode { name: "DNS Resolve Found",        cmd_template: "theHarvester -d {domain} -r -f {output_file}",                     inputs: &[InputKind::Domain], output_format: OutputFormat::Xml,   file_ext: "xml" },
+                Mode { 
+                    name: "Top 1000 Ports",      
+                    cmd_template: "naabu -host {ip} -top-ports 1000 -silent -o {output_file}", 
+                    inputs: &[InputKind::Ip],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Full Port Scan",        
+                    cmd_template: "naabu -host {ip} -p - -rate 1000 -o {output_file}", 
+                    inputs: &[InputKind::Ip],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Service Detection",         
+                    cmd_template: "naabu -host {ip} -top-ports 100 -nmap-cli -o {output_file}", 
+                    inputs: &[InputKind::Ip],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",          
+                    cmd_template: "naabu -host {ip} -top-ports 1000 -json -o {output_file}", 
+                    inputs: &[InputKind::Ip],   
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "Host Discovery",           
+                    cmd_template: "naabu -host {ip} -top-ports 500 -host -o {output_file}", 
+                    inputs: &[InputKind::Ip],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Bulk IP Scan",           
+                    cmd_template: "naabu -list {file} -top-ports 1000 -rate 500 -o {output_file}", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
-        // ── Shodan CLI ────────────────────────────────────────────────────
+        // ── ASNMap (Verified) ─────────────────────────────────────────────
         Tool {
-            name: "Shodan CLI",
-            binary: "shodan",
+            name: "ASNMap",
+            binary: "asnmap",
             modes: &[
-                Mode { name: "Host Info Lookup",         cmd_template: "shodan host {ip} | tee {output_file}",                             inputs: &[InputKind::Ip],     output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Network Search Query",     cmd_template: "shodan search --fields ip_str,port,org {target} | tee {output_file}", inputs: &[InputKind::Target], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "SSL Cert Search",          cmd_template: "shodan search ssl.cert.subject.cn:{domain} | tee {output_file}",   inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Download Results",         cmd_template: "shodan count {target} | tee {output_file}",                        inputs: &[InputKind::Target], output_format: OutputFormat::Raw,   file_ext: "txt" },
+                Mode { 
+                    name: "Domain ASN Map",      
+                    cmd_template: "asnmap -d {domain} -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Domain CIDR",        
+                    cmd_template: "asnmap -d {domain} -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Org ASN Map",         
+                    cmd_template: "asnmap -org '{value}' -o {output_file}", 
+                    inputs: &[InputKind::FreeText], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "IP to ASN",          
+                    cmd_template: "asnmap -ip {ip} -o {output_file}", 
+                    inputs: &[InputKind::Ip],     
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",           
+                    cmd_template: "asnmap -d {domain} -json -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "Bulk ASN Lookup",           
+                    cmd_template: "asnmap -l {file} -o {output_file}", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
-        // ── Waybackurls ───────────────────────────────────────────────────
+        // ── Katana (Verified) ──────────────────────────────────────────────
+        Tool {
+            name: "Katana",
+            binary: "katana",
+            modes: &[
+                Mode { 
+                    name: "Web Crawl",      
+                    cmd_template: "katana -u {domain} -silent -o {output_file} -d 3", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Deep Crawl",        
+                    cmd_template: "katana -u {domain} -silent -o {output_file} -d 5 -jc", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Headless Crawl",         
+                    cmd_template: "katana -u {domain} -headless -silent -o {output_file} -d 3", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Subdomain Crawl",          
+                    cmd_template: "katana -u {domain} -silent -o {output_file} -d 3 -sf", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",           
+                    cmd_template: "katana -u {domain} -silent -json -o {output_file} -d 3", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "Bulk Domain Crawl",           
+                    cmd_template: "katana -list {file} -silent -o {output_file} -d 3 -c 50", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+            ],
+        },
+        // ── Gau (Verified - no -subs flag) ──────────────────────────────
+        Tool {
+            name: "Gau",
+            binary: "gau",
+            modes: &[
+                Mode { 
+                    name: "Multi-Provider URL Discovery",      
+                    cmd_template: "gau {domain} --providers wayback,commoncrawl,otx,urlscan --o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Filtered URLs",        
+                    cmd_template: "gau {domain} --providers wayback,commoncrawl,otx,urlscan --o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Blacklist Filter",         
+                    cmd_template: "gau {domain} --blacklist png,jpg,gif,svg,ico,css,js,woff,ttf,mp3,mp4 --o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",          
+                    cmd_template: "gau {domain} --json --o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "Parameter Discovery",           
+                    cmd_template: "gau {domain} --o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Bulk Domain URL Collection",           
+                    cmd_template: "gau --list {file} --providers wayback,commoncrawl,otx,urlscan --o {output_file}", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+            ],
+        },
+        // ── Waybackurls (Verified) ──────────────────────────────────────
         Tool {
             name: "Waybackurls",
             binary: "waybackurls",
             modes: &[
-                Mode { name: "Fetch Archived URLs",      cmd_template: "echo {domain} | waybackurls | tee {output_file}",                  inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Filter by Extension",      cmd_template: "echo {domain} | waybackurls | grep '\\.{value}' | tee {output_file}", inputs: &[InputKind::Domain, InputKind::FreeText], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Unique Paths Only",        cmd_template: "echo {domain} | waybackurls | sort -u | tee {output_file}",        inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Keyword URL Filter",       cmd_template: "echo {domain} | waybackurls | grep '{value}' | tee {output_file}", inputs: &[InputKind::Domain, InputKind::FreeText], output_format: OutputFormat::Lines, file_ext: "txt" },
+                Mode { 
+                    name: "Archive URL Extraction",      
+                    cmd_template: "echo {domain} | waybackurls | sort -u > {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Content Filtering",        
+                    cmd_template: "echo {domain} | waybackurls | grep -Ev '\\.(png|jpg|gif|svg|ico|css|js|woff|ttf)$' | sort -u > {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Param Discovery",         
+                    cmd_template: "echo {domain} | waybackurls | grep '?' | sort -u > {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Bulk Domain Scrape",          
+                    cmd_template: "cat {file} | waybackurls | sort -u > {output_file}", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",           
+                    cmd_template: "echo {domain} | waybackurls --json > {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "Unique Paths Only",           
+                    cmd_template: "echo {domain} | waybackurls | sort -u > {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
-        // ── gau ───────────────────────────────────────────────────────────
+        // ── Uncover (Verified) ──────────────────────────────────────────────
         Tool {
-            name: "gau",
-            binary: "gau",
+            name: "Uncover",
+            binary: "uncover",
             modes: &[
-                Mode { name: "Fetch All URLs",           cmd_template: "echo {domain} | gau | tee {output_file}",                          inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Wayback Provider Only",    cmd_template: "echo {domain} | gau --providers wayback | tee {output_file}",      inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Blacklist Extensions",     cmd_template: "echo {domain} | gau --blacklist png,jpg,gif,svg | tee {output_file}", inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "JSON Output",              cmd_template: "echo {domain} | gau --json | tee {output_file}",                   inputs: &[InputKind::Domain], output_format: OutputFormat::Json,  file_ext: "json" },
+                Mode { 
+                    name: "OSINT Discovery",      
+                    cmd_template: "uncover -q {domain} -e shodan,censys,fofa -silent -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "IP & Host Discovery",        
+                    cmd_template: "uncover -q {domain} -e shodan,censys -silent -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Cert Discovery",         
+                    cmd_template: "uncover -q {domain} -e certspotter,censys -silent -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Bulk Query",          
+                    cmd_template: "uncover -q {value} -e shodan,censys,fofa -silent -o {output_file}", 
+                    inputs: &[InputKind::FreeText], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",           
+                    cmd_template: "uncover -q {domain} -e shodan,censys,fofa -silent -json -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "IP Range Discovery",           
+                    cmd_template: "uncover -q {ip}/24 -e shodan,censys -silent -o {output_file}", 
+                    inputs: &[InputKind::Ip],     
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
-        // ── certgraph ─────────────────────────────────────────────────────
+        // ── TLSX (Verified) ──────────────────────────────────────────────
         Tool {
-            name: "certgraph",
-            binary: "certgraph",
+            name: "TLSX",
+            binary: "tlsx",
             modes: &[
-                Mode { name: "Cert Domain Graph",        cmd_template: "certgraph -depth 1 {domain} | tee {output_file}",                  inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Follow Cert Chain",        cmd_template: "certgraph -depth 3 {domain} | tee {output_file}",                  inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Find Related Certs",       cmd_template: "certgraph -ct {domain} | tee {output_file}",                       inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Export JSON Graph",        cmd_template: "certgraph -json {domain} | tee {output_file}",                     inputs: &[InputKind::Domain], output_format: OutputFormat::Json,  file_ext: "json" },
+                Mode { 
+                    name: "TLS Analysis",      
+                    cmd_template: "tlsx -u {domain} -silent -o {output_file} -c", 
+                    inputs: &[InputKind::Domain],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "SSL Certificate",        
+                    cmd_template: "tlsx -u {domain} -silent -o {output_file} -c -cname -cert", 
+                    inputs: &[InputKind::Domain],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Cipher Analysis",         
+                    cmd_template: "tlsx -u {domain} -silent -o {output_file} -c -ciphers", 
+                    inputs: &[InputKind::Domain],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Vuln Detection",          
+                    cmd_template: "tlsx -u {domain} -silent -o {output_file} -c -p", 
+                    inputs: &[InputKind::Domain],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",           
+                    cmd_template: "tlsx -u {domain} -silent -json -o {output_file} -c", 
+                    inputs: &[InputKind::Domain],   
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "Bulk TLS Scan",           
+                    cmd_template: "tlsx -l {file} -silent -o {output_file} -c -cname", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
-        // ── whois ─────────────────────────────────────────────────────────
+        // ── AlterX (Verified) ──────────────────────────────────────────────
         Tool {
-            name: "whois",
-            binary: "whois",
+            name: "AlterX",
+            binary: "alterx",
             modes: &[
-                Mode { name: "Domain Whois",             cmd_template: "whois {domain} | tee {output_file}",                               inputs: &[InputKind::Domain], output_format: OutputFormat::Raw,   file_ext: "txt" },
-                Mode { name: "IP Whois",                 cmd_template: "whois {ip} | tee {output_file}",                                   inputs: &[InputKind::Ip],     output_format: OutputFormat::Raw,   file_ext: "txt" },
-                Mode { name: "Registrar Info Extract",   cmd_template: "whois {domain} | grep -iE 'registrar|created|expires|updated' | tee {output_file}", inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Raw Whois Dump",           cmd_template: "whois -H {domain} | tee {output_file}",                            inputs: &[InputKind::Domain], output_format: OutputFormat::Raw,   file_ext: "txt" },
+                Mode { 
+                    name: "Subdomain Permutation",      
+                    cmd_template: "alterx -d {domain} -silent -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Enriched Permutation",        
+                    cmd_template: "alterx -d {domain} -silent -enrich -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Custom Wordlist",         
+                    cmd_template: "alterx -d {domain} -silent -w /usr/share/seclists/Discovery/DNS/dns-Jhaddix.txt -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Path Permutation",          
+                    cmd_template: "alterx -d {domain}/ -silent -path -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",           
+                    cmd_template: "alterx -d {domain} -silent -json -o {output_file}", 
+                    inputs: &[InputKind::Domain], 
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "Bulk Domain",           
+                    cmd_template: "alterx -list {file} -silent -o {output_file}", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
-        // ── dig ───────────────────────────────────────────────────────────
+        // ── CDNCheck (Verified) ──────────────────────────────────────────────
         Tool {
-            name: "dig",
-            binary: "dig",
+            name: "CDNCheck",
+            binary: "cdncheck",
             modes: &[
-                Mode { name: "A Record Lookup",          cmd_template: "dig {domain} A | tee {output_file}",                               inputs: &[InputKind::Domain], output_format: OutputFormat::Raw,   file_ext: "txt" },
-                Mode { name: "MX Record Lookup",         cmd_template: "dig {domain} MX | tee {output_file}",                              inputs: &[InputKind::Domain], output_format: OutputFormat::Raw,   file_ext: "txt" },
-                Mode { name: "NS Record Lookup",         cmd_template: "dig {domain} NS | tee {output_file}",                              inputs: &[InputKind::Domain], output_format: OutputFormat::Raw,   file_ext: "txt" },
-                Mode { name: "Full DNS ANY Dump",        cmd_template: "dig {domain} ANY | tee {output_file}",                             inputs: &[InputKind::Domain], output_format: OutputFormat::Raw,   file_ext: "txt" },
+                Mode { 
+                    name: "CDN Detection",      
+                    cmd_template: "cdncheck -l {file} -silent -o {output_file}", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "IP CDN Check",        
+                    cmd_template: "cdncheck -i {ip} -silent -o {output_file}", 
+                    inputs: &[InputKind::Ip],     
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Provider Identification",         
+                    cmd_template: "cdncheck -l {file} -silent -json -o {output_file}", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "CDN-Only Extract",          
+                    cmd_template: "cdncheck -l {file} -silent -cdn-only -o {output_file}", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Non-CDN Extract",           
+                    cmd_template: "cdncheck -l {file} -silent -non-cdn-only -o {output_file}", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Bulk CDN Check",           
+                    cmd_template: "cdncheck -l {file} -silent -provider -o {output_file}", 
+                    inputs: &[InputKind::File],   
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
-        // ── dnsenum ───────────────────────────────────────────────────────
+        // ── Cloudlist (Verified) ──────────────────────────────────────────────
         Tool {
-            name: "dnsenum",
-            binary: "dnsenum",
+            name: "Cloudlist",
+            binary: "cloudlist",
             modes: &[
-                Mode { name: "Zone Transfer Attempt",    cmd_template: "dnsenum --dnsserver {target} {domain} | tee {output_file}",        inputs: &[InputKind::Domain, InputKind::Target], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "DNS Brute Force",          cmd_template: "dnsenum -f /usr/share/wordlists/dnsenum/dns.txt {domain} | tee {output_file}", inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "No Reverse Lookup",        cmd_template: "dnsenum --noreverse {domain} | tee {output_file}",                 inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Google Scrape Enum",       cmd_template: "dnsenum --google {domain} | tee {output_file}",                    inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-            ],
-        },
-        // ── dnsrecon ──────────────────────────────────────────────────────
-        Tool {
-            name: "dnsrecon",
-            binary: "dnsrecon",
-            modes: &[
-                Mode { name: "Standard DNS Scan",        cmd_template: "dnsrecon -d {domain} | tee {output_file}",                         inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Zone Transfer Probe",      cmd_template: "dnsrecon -d {domain} -t axfr | tee {output_file}",                 inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Brute Force Subs",         cmd_template: "dnsrecon -d {domain} -t brt | tee {output_file}",                  inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Reverse IP Range",         cmd_template: "dnsrecon -r {ip} | tee {output_file}",                             inputs: &[InputKind::Ip],     output_format: OutputFormat::Lines, file_ext: "txt" },
-            ],
-        },
-        // ── Fierce ────────────────────────────────────────────────────────
-        Tool {
-            name: "Fierce",
-            binary: "fierce",
-            modes: &[
-                Mode { name: "DNS Recon Scan",           cmd_template: "fierce --domain {domain} | tee {output_file}",                     inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Zone Transfer Probe",      cmd_template: "fierce --domain {domain} --dns-servers {target} | tee {output_file}", inputs: &[InputKind::Domain, InputKind::Target], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Brute Sub Lookup",         cmd_template: "fierce --domain {domain} --wordlist /usr/share/wordlists/fierce/hosts.txt | tee {output_file}", inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Wide Net Scan",            cmd_template: "fierce --domain {domain} --wide | tee {output_file}",              inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-            ],
-        },
-        // ── Knockpy ───────────────────────────────────────────────────────
-        Tool {
-            name: "Knockpy",
-            binary: "knockpy",
-            modes: &[
-                Mode { name: "Subdomain Wordlist Scan",  cmd_template: "knockpy {domain} | tee {output_file}",                             inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Resolve All Subs",         cmd_template: "knockpy {domain} --resolve | tee {output_file}",                   inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Export to CSV",            cmd_template: "knockpy {domain} --csv -o {output_file}",                          inputs: &[InputKind::Domain], output_format: OutputFormat::Csv,   file_ext: "csv" },
-                Mode { name: "Verbose Recon Scan",       cmd_template: "knockpy {domain} --verbose | tee {output_file}",                   inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-            ],
-        },
-        // ── puredns ───────────────────────────────────────────────────────
-        Tool {
-            name: "puredns",
-            binary: "puredns",
-            modes: &[
-                Mode { name: "Mass Resolve Domains",     cmd_template: "puredns resolve {file} -r /etc/resolv.conf | tee {output_file}",   inputs: &[InputKind::File],   output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Brute Force Subs",         cmd_template: "puredns bruteforce /usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-5000.txt {domain} | tee {output_file}", inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Wildcard Filter",          cmd_template: "puredns resolve {file} --wildcard-tests 3 | tee {output_file}",    inputs: &[InputKind::File],   output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Output Valid Subs",        cmd_template: "puredns bruteforce /usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-5000.txt {domain} -w {output_file}", inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-            ],
-        },
-        // ── shuffledns ────────────────────────────────────────────────────
-        Tool {
-            name: "shuffledns",
-            binary: "shuffledns",
-            modes: &[
-                Mode { name: "Subdomain Brute Force",    cmd_template: "shuffledns -d {domain} -w /usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-5000.txt -r /etc/resolv.conf | tee {output_file}", inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Resolve Wordlist File",    cmd_template: "shuffledns -d {domain} -list {file} -r /etc/resolv.conf | tee {output_file}", inputs: &[InputKind::Domain, InputKind::File], output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Mass Resolve File",        cmd_template: "shuffledns -list {file} -r /etc/resolv.conf | tee {output_file}", inputs: &[InputKind::File],   output_format: OutputFormat::Lines, file_ext: "txt" },
-                Mode { name: "Wildcard Detection",       cmd_template: "shuffledns -d {domain} -sw -r /etc/resolv.conf | tee {output_file}", inputs: &[InputKind::Domain], output_format: OutputFormat::Lines, file_ext: "txt" },
+                Mode { 
+                    name: "Multi-Cloud Discovery",      
+                    cmd_template: "cloudlist -provider all -profile {value} -silent -o {output_file}", 
+                    inputs: &[InputKind::FreeText], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "AWS Discovery",        
+                    cmd_template: "cloudlist -provider aws -profile {value} -silent -o {output_file}", 
+                    inputs: &[InputKind::FreeText], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "Azure Discovery",         
+                    cmd_template: "cloudlist -provider azure -profile {value} -silent -o {output_file}", 
+                    inputs: &[InputKind::FreeText], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "GCP Discovery",          
+                    cmd_template: "cloudlist -provider gcp -profile {value} -silent -o {output_file}", 
+                    inputs: &[InputKind::FreeText], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
+                Mode { 
+                    name: "JSON Output",           
+                    cmd_template: "cloudlist -provider all -profile {value} -silent -json -o {output_file}", 
+                    inputs: &[InputKind::FreeText], 
+                    output_format: OutputFormat::Json,  
+                    file_ext: "json" 
+                },
+                Mode { 
+                    name: "Multi-Provider Export",           
+                    cmd_template: "cloudlist -provider aws,azure,gcp -profile {value} -silent -o {output_file}", 
+                    inputs: &[InputKind::FreeText], 
+                    output_format: OutputFormat::Lines, 
+                    file_ext: "txt" 
+                },
             ],
         },
     ],

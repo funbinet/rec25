@@ -38,46 +38,119 @@ pub fn terminal_width() -> usize {
 
 // ── Banner ─────────────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 pub fn draw_banner() {
+    draw_banner_with_anon(&crate::config::settings::Anonymity::default());
+}
+
+/// Draw the startup banner with anonymity status indicators.
+/// Adapts to terminal width and uses the same box-drawing style as
+/// every other panel in the UI.
+pub fn draw_banner_with_anon(anon: &crate::config::settings::Anonymity) {
     let inner = terminal_width().saturating_sub(2).max(40);
 
     let top    = format!("╔{}╗", "═".repeat(inner));
     let bottom = format!("╚{}╝", "═".repeat(inner));
+    let mid    = format!("╠{}╣", "═".repeat(inner));
+
+    // ── Helper: centre a string inside ║...║ ───────────────────────────
+    let centre_row = |text: &str, colour: Color| {
+        let tw = UnicodeWidthStr::width(text);
+        let pad = inner.saturating_sub(tw);
+        let lp = pad / 2;
+        let rp = pad - lp;
+        cprint(green(), "║");
+        cprint(colour, &format!("{}{}{}", " ".repeat(lp), text, " ".repeat(rp)));
+        cprintln(green(), "║");
+    };
+
+    // ── Helper: left-aligned status row inside ║...║ ──────────────────
+    let status_row = |text: &str, colour: Color| {
+        let tw = UnicodeWidthStr::width(text);
+        let pad = inner.saturating_sub(tw + 2); // 2 = leading "  "
+        cprint(green(), "║");
+        cprint(colour, &format!("  {}{}", text, " ".repeat(pad)));
+        cprintln(green(), "║");
+    };
 
     // Title centred
     let title = "REC#25";
-    let title_w = UnicodeWidthStr::width(title);
-    let pad = inner.saturating_sub(title_w);
-    let lpad = pad / 2;
-    let rpad = pad - lpad;
 
     // Subtitle centred
-    let sub = "Reconnaissance Framework  v0.6.1";
-    let sub_w = UnicodeWidthStr::width(sub);
-    let pad2 = inner.saturating_sub(sub_w);
-    let lpad2 = pad2 / 2;
-    let rpad2 = pad2 - lpad2;
+    let sub = "Reconnaissance Framework  v0.8.0";
 
-    let mid = format!("╠{}╣", "═".repeat(inner));
+    cprintln(green(), &top);
+    centre_row(title, bright_green());
+    centre_row(sub, aqua());
+    cprintln(green(), &mid);
 
-    cprintln(green(),  &top);
-    cprint(green(),    "║");
-    cprint(bright_green(), &format!("{}{}{}", " ".repeat(lpad), title, " ".repeat(rpad)));
-    cprintln(green(),  "║");
-    cprint(green(),    "║");
-    cprint(aqua(),     &format!("{}{}{}", " ".repeat(lpad2), sub, " ".repeat(rpad2)));
-    cprintln(green(),  "║");
-    cprintln(green(),  &mid);
+    // ── Anonymity status block ─────────────────────────────────────────
+    if anon.enabled {
+        let shield = "ANONYMITY: ON";
+        centre_row(shield, bright_green());
+        cprintln(green(), &mid);
+
+        // Tor status
+        if anon.tor_enabled {
+            let tor = crate::anonymity::tor::TorManager::new(&anon.tor_socks_addr);
+            if tor.is_running() {
+                status_row("Tor: Connected", bright_green());
+                let ip_text = format!("IP: {}", crate::anonymity::tor::TorManager::get_cached_ip());
+                status_row(&ip_text, bright_green());
+            } else {
+                status_row("Tor: NOT RUNNING", red());
+            }
+        } else {
+            status_row("Tor: Disabled", grey());
+        }
+
+        // Proxy status
+        if !anon.proxy_pool.is_empty() {
+            let proxy_text = format!("Proxies: {} configured", anon.proxy_pool.len());
+            status_row(&proxy_text, bright_green());
+        } else {
+            status_row("Proxies: None", grey());
+        }
+
+        // ProxyChains
+        if anon.use_proxychains {
+            if crate::anonymity::stealth::proxychains_available() {
+                status_row("ProxyChains: Active", bright_green());
+            } else {
+                status_row("ProxyChains: NOT INSTALLED", red());
+            }
+        }
+
+        // DNS-over-HTTPS
+        if anon.dns_over_https {
+            status_row("DNS-over-HTTPS: Active", bright_green());
+        }
+
+        // MAC spoofing
+        if anon.mac_spoofing {
+            status_row("MAC Spoofing: Enabled", bright_green());
+        }
+
+        // Hostname spoofing
+        if anon.hostname_spoofing {
+            status_row("Hostname Spoofing: Enabled", bright_green());
+        }
+
+        // Kill switch
+        if anon.kill_switch {
+            status_row("Kill Switch: Armed", bright_green());
+        }
+
+        cprintln(green(), &mid);
+    } else {
+        let shield = "ANONYMITY: OFF";
+        centre_row(shield, grey());
+        cprintln(green(), &mid);
+    }
 
     // Tip bar
     let tip = "  Arrow keys / j,k to navigate   Enter to select   q to go back  ";
-    let tip_w = UnicodeWidthStr::width(tip);
-    let pad3 = inner.saturating_sub(tip_w);
-    let lpad3 = pad3 / 2;
-    let rpad3 = pad3 - lpad3;
-    cprint(green(),  "║");
-    cprint(grey(),   &format!("{}{}{}", " ".repeat(lpad3), tip, " ".repeat(rpad3)));
-    cprintln(green(), "║");
+    centre_row(tip, grey());
     cprintln(green(), &bottom);
     println!();
 }
@@ -168,7 +241,7 @@ pub fn section_header(label: &str) {
     let inner = terminal_width().saturating_sub(2).max(40);
     
     let top = format!("╔{}╗", "═".repeat(inner));
-    let mid = format!("╠{}╣", "═".repeat(inner));
+    let bot = format!("╚{}╝", "═".repeat(inner));
     
     let lw = UnicodeWidthStr::width(label);
     let pad = inner.saturating_sub(lw);
@@ -179,14 +252,49 @@ pub fn section_header(label: &str) {
     cprint(green(), "║");
     cprint(aqua(), &format!("{}{}{}", " ".repeat(lpad), label, " ".repeat(rpad)));
     cprintln(green(), "║");
-    cprintln(green(), &mid);
+    cprintln(green(), &bot);
 }
+
+/// Strip ANSI escape sequences from a string.
+pub fn strip_ansi(s: &str) -> String {
+    thread_local! {
+        static ANSI_RE: regex::Regex = regex::Regex::new(r"\x1B\[[0-9;?]*[a-zA-Z]|\x1B\(B").unwrap();
+    }
+    ANSI_RE.with(|re| re.replace_all(s, "").into_owned())
+}
+
+/// Strip ANSI escape sequences, expand tabs to spaces, truncate/ellipsize, and pad to target_cols.
+pub fn pad_to(s: &str, target_cols: usize) -> String {
+    let clean = strip_ansi(s).replace('\t', "    ");
+    let w = UnicodeWidthStr::width(clean.as_str());
+    if w >= target_cols {
+        let mut out = String::new();
+        let mut cols = 0usize;
+        for c in clean.chars() {
+            let cw = unicode_width::UnicodeWidthChar::width(c).unwrap_or(1);
+            if cols + cw > target_cols.saturating_sub(1) {
+                out.push('…');
+                break;
+            }
+            out.push(c);
+            cols += cw;
+        }
+        let cur_w = UnicodeWidthStr::width(out.as_str());
+        if cur_w < target_cols {
+            out.push_str(&" ".repeat(target_cols - cur_w));
+        }
+        out
+    } else {
+        format!("{}{}", clean, " ".repeat(target_cols - w))
+    }
+}
+
 
 // ── Wait-for-key ───────────────────────────────────────────────────────────
 
 pub fn wait_key() {
     println!();
-    cprint(grey(), "  Press any key to continue…");
+    cprint(grey(), "  [?] Press any key to continue…");
     let _ = io::stdout().flush();
     let _ = enable_raw_mode();
     loop {

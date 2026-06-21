@@ -382,6 +382,7 @@ pub fn settings_menu(config: &Config) -> Result<Option<Config>> {
     let api_shodan = if config.api_keys.shodan.is_empty()    { "not set" } else { "set [OK]" };
     let api_github = if config.api_keys.github.is_empty()    { "not set" } else { "set [OK]" };
     let api_censys = if config.api_keys.censys_id.is_empty() { "not set" } else { "set [OK]" };
+    let anon_status = if config.anonymity.enabled { "ON" } else { "OFF" };
 
     let current = [
         format!("Output dir    : {}", config.general.output_dir),
@@ -391,24 +392,35 @@ pub fn settings_menu(config: &Config) -> Result<Option<Config>> {
         format!("Shodan API    : {}",   api_shodan),
         format!("GitHub token  : {}",   api_github),
         format!("Censys        : {}",   api_censys),
+        format!("Anonymity     : {}",   anon_status),
     ];
     let refs: Vec<&str> = current.iter().map(String::as_str).collect();
     print_box("Current Settings", &refs);
     println!();
 
+    // Settings sub-menu
+    let items = vec![
+        " [1] General Settings".to_string(),
+        " [2] API Keys".to_string(),
+        " [3] Anonymity Settings".to_string(),
+        " [<] Back".to_string(),
+    ];
+
+    match run_boxed_menu("  Settings  -  Select Section  ", &items)? {
+        Some(0) => general_settings_menu(config),
+        Some(1) => api_keys_menu(config),
+        Some(2) => anonymity_settings_menu(config),
+        _ => Ok(None),
+    }
+}
+
+fn general_settings_menu(config: &Config) -> Result<Option<Config>> {
     let theme = hacker_theme();
     let mut new = config.clone();
 
     new.general.timeout_secs  = Input::with_theme(&theme).with_prompt("Timeout (seconds)").default(config.general.timeout_secs).interact_text()?;
     new.general.preview_lines = Input::with_theme(&theme).with_prompt("Preview lines").default(config.general.preview_lines).interact_text()?;
     new.general.output_dir    = Input::with_theme(&theme).with_prompt("Output directory").default(config.general.output_dir.clone()).interact_text()?;
-
-    if Confirm::with_theme(&theme).with_prompt("Edit API keys?").default(false).interact()? {
-        new.api_keys.shodan        = Input::with_theme(&theme).with_prompt("Shodan API key").default(config.api_keys.shodan.clone()).allow_empty(true).interact_text()?;
-        new.api_keys.github        = Input::with_theme(&theme).with_prompt("GitHub token").default(config.api_keys.github.clone()).allow_empty(true).interact_text()?;
-        new.api_keys.censys_id     = Input::with_theme(&theme).with_prompt("Censys ID").default(config.api_keys.censys_id.clone()).allow_empty(true).interact_text()?;
-        new.api_keys.censys_secret = Input::with_theme(&theme).with_prompt("Censys secret").default(config.api_keys.censys_secret.clone()).allow_empty(true).interact_text()?;
-    }
 
     if Confirm::with_theme(&theme).with_prompt("Save settings?").default(true).interact()? {
         new.save()?;
@@ -419,3 +431,163 @@ pub fn settings_menu(config: &Config) -> Result<Option<Config>> {
         Ok(None)
     }
 }
+
+fn api_keys_menu(config: &Config) -> Result<Option<Config>> {
+    let theme = hacker_theme();
+    let mut new = config.clone();
+
+    new.api_keys.shodan        = Input::with_theme(&theme).with_prompt("Shodan API key").default(config.api_keys.shodan.clone()).allow_empty(true).interact_text()?;
+    new.api_keys.github        = Input::with_theme(&theme).with_prompt("GitHub token").default(config.api_keys.github.clone()).allow_empty(true).interact_text()?;
+    new.api_keys.censys_id     = Input::with_theme(&theme).with_prompt("Censys ID").default(config.api_keys.censys_id.clone()).allow_empty(true).interact_text()?;
+    new.api_keys.censys_secret = Input::with_theme(&theme).with_prompt("Censys secret").default(config.api_keys.censys_secret.clone()).allow_empty(true).interact_text()?;
+
+    if Confirm::with_theme(&theme).with_prompt("Save API keys?").default(true).interact()? {
+        new.save()?;
+        print_success("Settings saved to /opt/rec25/config/config.toml");
+        wait_key();
+        Ok(Some(new))
+    } else {
+        Ok(None)
+    }
+}
+
+fn anonymity_settings_menu(config: &Config) -> Result<Option<Config>> {
+    let theme = hacker_theme();
+    let mut new = config.clone();
+    let anon = &config.anonymity;
+
+    // Show current anonymity status
+    println!();
+    let status_lines = [
+        format!("Enabled          : {}", if anon.enabled { "ON" } else { "OFF" }),
+        format!("Tor              : {}", if anon.tor_enabled { "ON" } else { "OFF" }),
+        format!("Tor SOCKS addr   : {}", anon.tor_socks_addr),
+        format!("Proxies          : {} configured", anon.proxy_pool.len()),
+        format!("Proxy rotation   : {}s", anon.proxy_rotation_secs),
+        format!("ProxyChains      : {}", if anon.use_proxychains { "ON" } else { "OFF" }),
+        format!("Delay range      : {}ms - {}ms", anon.delay_min_ms, anon.delay_max_ms),
+        format!("User-Agent rot.  : {}", if anon.user_agent_rotation { "ON" } else { "OFF" }),
+        format!("DNS-over-HTTPS   : {}", if anon.dns_over_https { "ON" } else { "OFF" }),
+        format!("Output sanitize  : {}", if anon.sanitize_output { "ON" } else { "OFF" }),
+        format!("MAC spoofing     : {}", if anon.mac_spoofing { "ON" } else { "OFF" }),
+        format!("Hostname spoof   : {}", if anon.hostname_spoofing { "ON" } else { "OFF" }),
+        format!("Kill switch      : {}", if anon.kill_switch { "ON" } else { "OFF" }),
+    ];
+    let refs: Vec<&str> = status_lines.iter().map(String::as_str).collect();
+    print_box("Anonymity Status", &refs);
+    println!();
+
+    // Toggle prompts
+    new.anonymity.enabled = Confirm::with_theme(&theme)
+        .with_prompt("Enable anonymity?")
+        .default(anon.enabled)
+        .interact()?;
+
+    if new.anonymity.enabled {
+        new.anonymity.tor_enabled = Confirm::with_theme(&theme)
+            .with_prompt("Enable Tor routing?")
+            .default(anon.tor_enabled)
+            .interact()?;
+
+        if new.anonymity.tor_enabled {
+            new.anonymity.tor_socks_addr = Input::with_theme(&theme)
+                .with_prompt("Tor SOCKS address")
+                .default(anon.tor_socks_addr.clone())
+                .interact_text()?;
+        }
+
+        new.anonymity.use_proxychains = Confirm::with_theme(&theme)
+            .with_prompt("Use proxychains-ng?")
+            .default(anon.use_proxychains)
+            .interact()?;
+
+        // Proxy pool management
+        if Confirm::with_theme(&theme).with_prompt("Edit proxy pool?").default(false).interact()? {
+            println!();
+            if !anon.proxy_pool.is_empty() {
+                cprintln(grey(), "  Current proxies:");
+                for (i, p) in anon.proxy_pool.iter().enumerate() {
+                    cprintln(grey(), &format!("    [{}] {}", i + 1, p));
+                }
+            } else {
+                cprintln(grey(), "  No proxies configured.");
+            }
+            println!();
+
+            // Clear and re-enter
+            new.anonymity.proxy_pool = Vec::new();
+            loop {
+                let proxy: String = Input::with_theme(&theme)
+                    .with_prompt("Add proxy (empty to finish)")
+                    .allow_empty(true)
+                    .interact_text()?;
+                if proxy.trim().is_empty() {
+                    break;
+                }
+                new.anonymity.proxy_pool.push(proxy.trim().to_string());
+            }
+        }
+
+        new.anonymity.proxy_rotation_secs = Input::with_theme(&theme)
+            .with_prompt("Proxy rotation interval (seconds, 0=off)")
+            .default(anon.proxy_rotation_secs)
+            .interact_text()?;
+
+        if new.anonymity.tor_enabled {
+            new.anonymity.tor_renewal_secs = Input::with_theme(&theme)
+                .with_prompt("Tor circuit renewal interval (seconds, 0=off)")
+                .default(anon.tor_renewal_secs)
+                .interact_text()?;
+        }
+
+        new.anonymity.delay_min_ms = Input::with_theme(&theme)
+            .with_prompt("Timing delay minimum (ms)")
+            .default(anon.delay_min_ms)
+            .interact_text()?;
+
+        new.anonymity.delay_max_ms = Input::with_theme(&theme)
+            .with_prompt("Timing delay maximum (ms)")
+            .default(anon.delay_max_ms)
+            .interact_text()?;
+
+        new.anonymity.user_agent_rotation = Confirm::with_theme(&theme)
+            .with_prompt("Enable User-Agent rotation?")
+            .default(anon.user_agent_rotation)
+            .interact()?;
+
+        new.anonymity.dns_over_https = Confirm::with_theme(&theme)
+            .with_prompt("Enable DNS-over-HTTPS?")
+            .default(anon.dns_over_https)
+            .interact()?;
+
+        new.anonymity.sanitize_output = Confirm::with_theme(&theme)
+            .with_prompt("Sanitize output (strip private IPs, MACs, etc.)?")
+            .default(anon.sanitize_output)
+            .interact()?;
+
+        new.anonymity.mac_spoofing = Confirm::with_theme(&theme)
+            .with_prompt("Enable MAC spoofing? (requires macchanger + root)")
+            .default(anon.mac_spoofing)
+            .interact()?;
+
+        new.anonymity.hostname_spoofing = Confirm::with_theme(&theme)
+            .with_prompt("Enable hostname spoofing?")
+            .default(anon.hostname_spoofing)
+            .interact()?;
+
+        new.anonymity.kill_switch = Confirm::with_theme(&theme)
+            .with_prompt("Enable kill switch? (blocks if anon layer is down)")
+            .default(anon.kill_switch)
+            .interact()?;
+    }
+
+    if Confirm::with_theme(&theme).with_prompt("Save anonymity settings?").default(true).interact()? {
+        new.save()?;
+        print_success("Anonymity settings saved to /opt/rec25/config/config.toml");
+        wait_key();
+        Ok(Some(new))
+    } else {
+        Ok(None)
+    }
+}
+

@@ -47,20 +47,37 @@ pub fn check_binary(binary: &str) -> bool {
 }
 
 /// Run `cmd` through `sh -c`, enforcing `timeout_secs`.
+/// Delegates to `run_command_with_env` with no extra env vars.
+pub fn run_command(cmd: &str, timeout_secs: u64) -> Result<ExecResult> {
+    run_command_with_env(cmd, timeout_secs, &HashMap::new())
+}
+
+/// Run `cmd` through `sh -c`, enforcing `timeout_secs`, with additional
+/// environment variables injected into the child process.
 ///
 /// The command is executed on a worker thread. If the timeout fires the
 /// thread is abandoned (the child process continues briefly) and an error
 /// is returned — acceptable for a v1 sequential tool.
-pub fn run_command(cmd: &str, timeout_secs: u64) -> Result<ExecResult> {
+pub fn run_command_with_env(
+    cmd: &str,
+    timeout_secs: u64,
+    env_vars: &HashMap<String, String>,
+) -> Result<ExecResult> {
     let start = Instant::now();
     let cmd_owned = cmd.to_string();
+    let env_owned = env_vars.clone();
     let (tx, rx) = mpsc::channel::<Result<ExecResult>>();
 
     thread::spawn(move || {
-        let result = std::process::Command::new("sh")
-            .arg("-c")
-            .arg(&cmd_owned)
-            .output();
+        let mut command = std::process::Command::new("sh");
+        command.arg("-c").arg(&cmd_owned);
+
+        // Inject anonymity environment variables
+        for (key, val) in &env_owned {
+            command.env(key, val);
+        }
+
+        let result = command.output();
 
         let res = match result {
             Ok(out) => Ok(ExecResult {
@@ -98,5 +115,22 @@ pub fn install_hint(binary: &str) -> String {
         "knockpy"        => "knockpy",
         other            => other,
     };
-    format!("sudo apt install {pkg} -y   OR   pip install {pkg}")
+    // For Arch Linux, suggest pacman, yay, or go install
+    let arch_pkg = match binary {
+        "httpx-pd" => "httpx-bin (yay) or go install github.com/projectdiscovery/httpx/cmd/httpx@latest",
+        "subfinder" => "subfinder (pacman) or go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
+        "amass" => "amass (pacman)",
+        "dnsx" => "dnsx-bin (yay) or go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest",
+        "naabu" => "naabu (yay) or go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
+        "tlsx" => "tlsx-bin (yay) or go install github.com/projectdiscovery/tlsx/cmd/tlsx@latest",
+        "katana" => "katana-bin (yay) or go install github.com/projectdiscovery/katana/cmd/katana@latest",
+        "nuclei" => "nuclei (pacman) or go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
+        "rustscan" => "rustscan (yay)",
+        "theHarvester" => "theharvester (pacman)",
+        "ffuf" => "ffuf (pacman)",
+        "gobuster" => "gobuster (pacman)",
+        _ => pkg,
+    };
+    format!("sudo pacman -S {pkg}   OR   yay -S {arch_pkg}")
 }
+

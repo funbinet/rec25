@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# REC#25 Installer v0.6.0
+# REC#25 Installer v0.8.0
 
 set -e
 
+# 1. Require root or prompt for sudo FIRST
+if [ "$EUID" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
+
 echo -e "\033[32m╔═══════════════════════════════════════════════════════════════╗\033[0m"
-echo -e "\033[32m║  \033[1;32mREC#25\033[0m \033[37mInstaller  v0.6.0\033[0m                                       \033[32m║\033[0m"
+echo -e "\033[32m║  \033[1;32mREC#25\033[0m \033[37mInstaller  v0.8.0\033[0m                                     \033[32m║\033[0m"
 echo -e "\033[32m╚═══════════════════════════════════════════════════════════════╝\033[0m"
 echo ""
 
-# 1. Require root or prompt for sudo
-if [ "$EUID" -ne 0 ]; then
-    echo -e "\033[36m[i]\033[0m Requesting administrative privileges..."
-    exec sudo "$0" "$@"
-fi
 
 # 2. Find cargo — look in the real user's home even when running as root
 find_cargo() {

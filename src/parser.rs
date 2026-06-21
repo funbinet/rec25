@@ -13,6 +13,7 @@ pub struct ParsedOutput {
     /// One-line human-readable summary ("Found 42 subdomains", "8 ports open", …).
     pub summary: String,
     /// Raw bytes of the original output (kept for fallback display).
+    #[allow(dead_code)]
     pub raw: String,
 }
 
