@@ -50,9 +50,17 @@ fn pad_to(s: &str, target_cols: usize) -> String {
 
 // ── Core boxed menu ────────────────────────────────────────────────────────
 
+pub enum BoxedMenuResult {
+    Selected(usize),
+    TimeoutOverride(usize),
+    Back,
+    Home,
+    Exit,
+}
+
 /// Draw a full-terminal-width box menu with a centred title and navigate with
-/// arrow/j/k keys.  Returns `Some(index)` on Enter, `None` on Esc/q.
-fn run_boxed_menu(title: &str, items: &[String]) -> Result<Option<usize>> {
+/// arrow/j/k keys.  Returns `BoxedMenuResult`.
+fn run_boxed_menu(title: &str, items: &[String]) -> Result<BoxedMenuResult> {
     let term_cols = terminal_width();
 
     // Total box width = term_cols (fills the whole terminal row)
@@ -88,6 +96,9 @@ fn run_boxed_menu(title: &str, items: &[String]) -> Result<Option<usize>> {
     let mut selected  = 0usize;
     let max_visible   = 18usize;
     let mut prev_rows = 0u16;
+
+    let mut digit_buffer = String::new();
+    let mut last_digit_time = std::time::Instant::now();
 
     let result = loop {
         let visible = items.len().min(max_visible);
@@ -153,24 +164,46 @@ fn run_boxed_menu(title: &str, items: &[String]) -> Result<Option<usize>> {
         let _ = stdout.flush();
 
         // ── Key handling ───────────────────────────────────────────────────
-        if let Event::Key(key) = event::read()? {
-            if key.kind == KeyEventKind::Press {
-                match key.code {
-                    KeyCode::Up   | KeyCode::Char('k') => {
-                        if selected > 0 { selected -= 1; }
+        if crossterm::event::poll(std::time::Duration::from_millis(50))? {
+            if let Event::Key(key) = event::read()? {
+                if key.kind == KeyEventKind::Press || key.kind == KeyEventKind::Repeat {
+                    match key.code {
+                        KeyCode::Up   | KeyCode::Char('k') => {
+                            if selected > 0 { selected -= 1; }
+                        }
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            if selected + 1 < items.len() { selected += 1; }
+                        }
+                        KeyCode::Enter => { break BoxedMenuResult::Selected(selected); }
+                        KeyCode::Esc | KeyCode::Char('q') => { break BoxedMenuResult::Back; }
+                        KeyCode::Char('<') => { break BoxedMenuResult::Back; }
+                        KeyCode::Char('#') => { break BoxedMenuResult::Home; }
+                        KeyCode::Char('x') => { break BoxedMenuResult::Exit; }
+                        KeyCode::Char('T') | KeyCode::Char('t') => { break BoxedMenuResult::TimeoutOverride(selected); }
+                        KeyCode::Char(c) if c.is_ascii_digit() => {
+                            if key.kind == KeyEventKind::Press {
+                                digit_buffer.push(c);
+                                last_digit_time = std::time::Instant::now();
+                            }
+                        }
+                        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            let _ = execute!(stdout, cursor::Show, ResetColor);
+                            let _ = terminal::disable_raw_mode();
+                            std::process::exit(0);
+                        }
+                        _ => {}
                     }
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        if selected + 1 < items.len() { selected += 1; }
-                    }
-                    KeyCode::Enter => { break Some(selected); }
-                    KeyCode::Esc | KeyCode::Char('q') => { break None; }
-                    KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        let _ = execute!(stdout, cursor::Show, ResetColor);
-                        let _ = terminal::disable_raw_mode();
-                        std::process::exit(0);
-                    }
-                    _ => {}
                 }
+            }
+        } else {
+            // Check digit buffer timeout
+            if !digit_buffer.is_empty() && last_digit_time.elapsed() > std::time::Duration::from_millis(400) {
+                if let Ok(num) = digit_buffer.parse::<usize>() {
+                    if num > 0 && num <= items.len() {
+                        break BoxedMenuResult::Selected(num - 1);
+                    }
+                }
+                digit_buffer.clear();
             }
         }
     };
@@ -193,6 +226,7 @@ pub enum TopMenuChoice {
 #[derive(Debug)]
 pub enum MenuResult<T> {
     Selected(T),
+    TimeoutOverride(T),
     Back,
     Home,
     Exit,
@@ -212,14 +246,14 @@ pub fn top_menu() -> Result<TopMenuChoice> {
     ];
 
     match run_boxed_menu("  R E C # 2 5   -   M A I N   M E N U  ", &items)? {
-        Some(0) => Ok(TopMenuChoice::Category(0)),
-        Some(1) => Ok(TopMenuChoice::Category(1)),
-        Some(2) => Ok(TopMenuChoice::Category(2)),
-        Some(3) => Ok(TopMenuChoice::Category(3)),
-        Some(4) => Ok(TopMenuChoice::Category(4)),
-        Some(5) => Ok(TopMenuChoice::Outputs),
-        Some(6) => Ok(TopMenuChoice::Settings),
-        _       => Ok(TopMenuChoice::Exit),
+        BoxedMenuResult::Selected(0) => Ok(TopMenuChoice::Category(0)),
+        BoxedMenuResult::Selected(1) => Ok(TopMenuChoice::Category(1)),
+        BoxedMenuResult::Selected(2) => Ok(TopMenuChoice::Category(2)),
+        BoxedMenuResult::Selected(3) => Ok(TopMenuChoice::Category(3)),
+        BoxedMenuResult::Selected(4) => Ok(TopMenuChoice::Category(4)),
+        BoxedMenuResult::Selected(5) => Ok(TopMenuChoice::Outputs),
+        BoxedMenuResult::Selected(6) => Ok(TopMenuChoice::Settings),
+        _ => Ok(TopMenuChoice::Exit),
     }
 }
 
@@ -237,11 +271,14 @@ pub fn tool_menu(cat: &'static Category) -> Result<MenuResult<&'static Tool>> {
 
     let len = cat.tools.len();
     match run_boxed_menu(&title, &items)? {
-        Some(i) if i < len => Ok(MenuResult::Selected(&cat.tools[i])),
-        Some(i) if i == len => Ok(MenuResult::Home),
-        Some(i) if i == len + 1 => Ok(MenuResult::Back),
-        Some(_) => Ok(MenuResult::Exit),
-        None => Ok(MenuResult::Back),
+        BoxedMenuResult::Selected(i) if i < len => Ok(MenuResult::Selected(&cat.tools[i])),
+        BoxedMenuResult::Selected(i) if i == len => Ok(MenuResult::Home),
+        BoxedMenuResult::Selected(i) if i == len + 1 => Ok(MenuResult::Back),
+        BoxedMenuResult::Selected(_) => Ok(MenuResult::Exit),
+        BoxedMenuResult::Home => Ok(MenuResult::Home),
+        BoxedMenuResult::Back => Ok(MenuResult::Back),
+        BoxedMenuResult::Exit => Ok(MenuResult::Exit),
+        _ => Ok(MenuResult::Back),
     }
 }
 
@@ -259,11 +296,15 @@ pub fn mode_menu(tool: &'static Tool) -> Result<MenuResult<&'static Mode>> {
 
     let len = tool.modes.len();
     match run_boxed_menu(&title, &items)? {
-        Some(i) if i < len => Ok(MenuResult::Selected(&tool.modes[i])),
-        Some(i) if i == len => Ok(MenuResult::Home),
-        Some(i) if i == len + 1 => Ok(MenuResult::Back),
-        Some(_) => Ok(MenuResult::Exit),
-        None => Ok(MenuResult::Back),
+        BoxedMenuResult::Selected(i) if i < len => Ok(MenuResult::Selected(&tool.modes[i])),
+        BoxedMenuResult::TimeoutOverride(i) if i < len => Ok(MenuResult::TimeoutOverride(&tool.modes[i])),
+        BoxedMenuResult::Selected(i) if i == len => Ok(MenuResult::Home),
+        BoxedMenuResult::Selected(i) if i == len + 1 => Ok(MenuResult::Back),
+        BoxedMenuResult::Selected(_) => Ok(MenuResult::Exit),
+        BoxedMenuResult::Home => Ok(MenuResult::Home),
+        BoxedMenuResult::Back => Ok(MenuResult::Back),
+        BoxedMenuResult::Exit => Ok(MenuResult::Exit),
+        _ => Ok(MenuResult::Back),
     }
 }
 
@@ -293,7 +334,7 @@ pub fn outputs_menu(config: &Config) -> Result<MenuResult<()>> {
 
         let len = files.len();
         match run_boxed_menu("  Outputs  -  Browse & Manage  ", &items)? {
-            Some(i) if i < len => {
+            BoxedMenuResult::Selected(i) if i < len => {
                 let path = format!("{}/{}", config.output_dir(), files[i].0);
                 match file_action_menu(&path)? {
                     MenuResult::Home => return Ok(MenuResult::Home),
@@ -301,10 +342,13 @@ pub fn outputs_menu(config: &Config) -> Result<MenuResult<()>> {
                     _ => continue,
                 }
             }
-            Some(i) if i == len => return Ok(MenuResult::Home),
-            Some(i) if i == len + 1 => return Ok(MenuResult::Back),
-            Some(_) => return Ok(MenuResult::Exit),
-            None => return Ok(MenuResult::Back),
+            BoxedMenuResult::Selected(i) if i == len => return Ok(MenuResult::Home),
+            BoxedMenuResult::Selected(i) if i == len + 1 => return Ok(MenuResult::Back),
+            BoxedMenuResult::Selected(_) => return Ok(MenuResult::Exit),
+            BoxedMenuResult::Home => return Ok(MenuResult::Home),
+            BoxedMenuResult::Back => return Ok(MenuResult::Back),
+            BoxedMenuResult::Exit => return Ok(MenuResult::Exit),
+            _ => return Ok(MenuResult::Back),
         }
     }
 }
@@ -353,9 +397,9 @@ fn file_action_menu(path: &str) -> Result<MenuResult<()>> {
     ];
 
     match run_boxed_menu("  File Action  ", &actions)? {
-        Some(0) => { crate::ui::output_viewer::view_file(path)?; Ok(MenuResult::Selected(())) }
-        Some(1) => { let _ = std::process::Command::new("nano").arg(path).status(); Ok(MenuResult::Selected(())) }
-        Some(2) => {
+        BoxedMenuResult::Selected(0) => { crate::ui::output_viewer::view_file(path)?; Ok(MenuResult::Selected(())) }
+        BoxedMenuResult::Selected(1) => { let _ = std::process::Command::new("nano").arg(path).status(); Ok(MenuResult::Selected(())) }
+        BoxedMenuResult::Selected(2) => {
             if Confirm::with_theme(&hacker_theme())
                 .with_prompt(format!("Delete '{}'?", fname))
                 .default(false).interact()?
@@ -366,9 +410,12 @@ fn file_action_menu(path: &str) -> Result<MenuResult<()>> {
             }
             Ok(MenuResult::Selected(()))
         }
-        Some(3) => Ok(MenuResult::Home),
-        Some(4) | None => Ok(MenuResult::Back),
-        Some(5) => Ok(MenuResult::Exit),
+        BoxedMenuResult::Selected(3) => Ok(MenuResult::Home),
+        BoxedMenuResult::Selected(4) => Ok(MenuResult::Back),
+        BoxedMenuResult::Selected(5) => Ok(MenuResult::Exit),
+        BoxedMenuResult::Home => Ok(MenuResult::Home),
+        BoxedMenuResult::Back => Ok(MenuResult::Back),
+        BoxedMenuResult::Exit => Ok(MenuResult::Exit),
         _ => Ok(MenuResult::Back)
     }
 }
@@ -407,9 +454,9 @@ pub fn settings_menu(config: &Config) -> Result<Option<Config>> {
     ];
 
     match run_boxed_menu("  Settings  -  Select Section  ", &items)? {
-        Some(0) => general_settings_menu(config),
-        Some(1) => api_keys_menu(config),
-        Some(2) => anonymity_settings_menu(config),
+        BoxedMenuResult::Selected(0) => general_settings_menu(config),
+        BoxedMenuResult::Selected(1) => api_keys_menu(config),
+        BoxedMenuResult::Selected(2) => anonymity_settings_menu(config),
         _ => Ok(None),
     }
 }

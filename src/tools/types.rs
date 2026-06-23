@@ -1,13 +1,12 @@
 /// Kinds of input a mode can require from the user.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum InputKind {
     Domain,
     Ip,
     Url,
     File,
-    Target,
     Ports,
-    FreeText,
+    Custom(&'static str, &'static str),
 }
 
 impl InputKind {
@@ -18,9 +17,8 @@ impl InputKind {
             Self::Ip       => "IP / CIDR",
             Self::Url      => "URL",
             Self::File     => "File path",
-            Self::Target   => "Target",
             Self::Ports    => "Ports (e.g. 80,443)",
-            Self::FreeText => "Value",
+            Self::Custom(label, _) => label,
         }
     }
 
@@ -31,9 +29,8 @@ impl InputKind {
             Self::Ip       => "ip",
             Self::Url      => "url",
             Self::File     => "file",
-            Self::Target   => "target",
             Self::Ports    => "ports",
-            Self::FreeText => "value",
+            Self::Custom(_, ph) => ph,
         }
     }
 }

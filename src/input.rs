@@ -1,7 +1,7 @@
 //! Input prompts with validation for each InputKind.
 
 use anyhow::Result;
-use dialoguer::{theme::ColorfulTheme, Input, Select};
+use dialoguer::{theme::ColorfulTheme, Input, Select, History};
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -47,14 +47,60 @@ pub fn collect_inputs(mode: &Mode, config: &Config) -> Result<HashMap<String, St
 
 // ── Internal helpers ───────────────────────────────────────────────────────
 
+struct FileHistory {
+    max: usize,
+    history: std::collections::VecDeque<String>,
+    path: std::path::PathBuf,
+}
+
+impl FileHistory {
+    fn new(kind: InputKind) -> Self {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        let mut path = std::path::PathBuf::from(home);
+        path.push(".rec25_history");
+        std::fs::create_dir_all(&path).ok();
+        path.push(kind.placeholder());
+        
+        let history = if let Ok(contents) = std::fs::read_to_string(&path) {
+            contents.lines().map(|s| s.to_string()).collect()
+        } else {
+            std::collections::VecDeque::new()
+        };
+        
+        Self { max: 100, history, path }
+    }
+}
+
+impl History<String> for FileHistory {
+    fn read(&self, pos: usize) -> Option<String> {
+        self.history.get(self.history.len().saturating_sub(pos + 1)).cloned()
+    }
+
+    fn write(&mut self, val: &String) {
+        if self.history.back() != Some(val) {
+            // Remove previous occurrence to move to the front
+            self.history.retain(|x| x != val);
+            self.history.push_back(val.clone());
+            if self.history.len() > self.max {
+                self.history.pop_front();
+            }
+            let contents = self.history.iter().cloned().collect::<Vec<_>>().join("\n");
+            std::fs::write(&self.path, contents).ok();
+        }
+    }
+}
+
 /// Prompt for a text value, validating per-kind.
 fn prompt_text(kind: InputKind) -> Result<String> {
     let theme = hacker_theme();
     let label = kind.label();
 
+    let mut history = FileHistory::new(kind);
+
     let value: String = match kind {
         InputKind::Domain => Input::with_theme(&theme)
             .with_prompt(label)
+            .history_with(&mut history)
             .validate_with(|s: &String| {
                 if domain_re().is_match(s.trim()) { Ok(()) }
                 else { Err(format!("'{}' does not look like a valid domain.", s)) }
@@ -63,6 +109,7 @@ fn prompt_text(kind: InputKind) -> Result<String> {
 
         InputKind::Ip => Input::with_theme(&theme)
             .with_prompt(label)
+            .history_with(&mut history)
             .validate_with(|s: &String| {
                 if ip_re().is_match(s.trim()) { Ok(()) }
                 else { Err(format!("'{}' does not look like a valid IP or CIDR.", s)) }
@@ -71,6 +118,7 @@ fn prompt_text(kind: InputKind) -> Result<String> {
 
         InputKind::Url => Input::with_theme(&theme)
             .with_prompt(label)
+            .history_with(&mut history)
             .validate_with(|s: &String| {
                 let t = s.trim();
                 if t.starts_with("http://") || t.starts_with("https://") { Ok(()) }
@@ -80,6 +128,7 @@ fn prompt_text(kind: InputKind) -> Result<String> {
 
         InputKind::Ports => Input::with_theme(&theme)
             .with_prompt(label)
+            .history_with(&mut history)
             .validate_with(|s: &String| {
                 if ports_re().is_match(s.trim()) { Ok(()) }
                 else { Err("Ports must be digits, commas, or dashes (e.g. 80,443,8000-9000)".to_string()) }
@@ -88,6 +137,7 @@ fn prompt_text(kind: InputKind) -> Result<String> {
 
         _ => Input::with_theme(&theme)
             .with_prompt(label)
+            .history_with(&mut history)
             .validate_with(|s: &String| {
                 if s.trim().is_empty() { Err("Input cannot be empty.".to_string()) }
                 else { Ok(()) }

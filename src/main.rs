@@ -168,13 +168,25 @@ fn main() -> Result<()> {
                 // Loop at tool selection
                 'tool_loop: loop {
                     match tool_menu(cat)? {
-                        MenuResult::Selected(tool) => {
+                        MenuResult::Selected(tool) | MenuResult::TimeoutOverride(tool) => {
                             // Loop at mode selection
                             loop {
                                 match mode_menu(tool)? {
                                     MenuResult::Selected(mode) => {
                                         // Execute workflow.
                                         run_workflow(tool, mode, &cfg, &logger, &mut proxy_mgr)?;
+                                    }
+                                    MenuResult::TimeoutOverride(mode) => {
+                                        // Prompt for custom timeout
+                                        let theme = crate::input::hacker_theme();
+                                        let t_str: String = dialoguer::Input::with_theme(&theme)
+                                            .with_prompt("Custom timeout (0 = infinite)")
+                                            .default(cfg.timeout_secs().to_string())
+                                            .interact_text()?;
+                                        let custom_t = t_str.parse::<u64>().unwrap_or(cfg.timeout_secs());
+                                        let mut temp_cfg = cfg.clone();
+                                        temp_cfg.general.timeout_secs = custom_t;
+                                        run_workflow(tool, mode, &temp_cfg, &logger, &mut proxy_mgr)?;
                                     }
                                     MenuResult::Back => break,
                                     MenuResult::Home => break 'tool_loop,

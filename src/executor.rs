@@ -91,13 +91,20 @@ pub fn run_command_with_env(
         let _ = tx.send(res);
     });
 
-    match rx.recv_timeout(Duration::from_secs(timeout_secs)) {
-        Ok(res) => res,
-        Err(mpsc::RecvTimeoutError::Timeout) => {
-            bail!("Command timed out after {timeout_secs}s")
+    if timeout_secs == 0 {
+        match rx.recv() {
+            Ok(res) => res,
+            Err(_) => bail!("Command thread disconnected unexpectedly")
         }
-        Err(mpsc::RecvTimeoutError::Disconnected) => {
-            bail!("Command thread disconnected unexpectedly")
+    } else {
+        match rx.recv_timeout(Duration::from_secs(timeout_secs)) {
+            Ok(res) => res,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                bail!("Command timed out after {timeout_secs}s")
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                bail!("Command thread disconnected unexpectedly")
+            }
         }
     }
 }
